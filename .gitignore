@@ -15,3 +15,6 @@ __pycache__/
 # OBS: data/state.json e data/postpone_log.json NÃO são ignorados de propósito —
 # eles guardam o histórico de adiamentos e precisam ser versionados para
 # acumular entre as rodadas automáticas na nuvem.
+
+# logs de debug
+*.log
