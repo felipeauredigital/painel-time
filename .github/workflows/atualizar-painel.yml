@@ -1,0 +1,58 @@
+name: Atualizar painel do time
+
+on:
+  schedule:
+    - cron: "0 11 * * *"   # 11:00 UTC = 08:00 no horário de Brasília
+  workflow_dispatch: {}     # botão "Run workflow" para rodar na hora
+
+permissions:
+  contents: write   # salvar o estado dos adiamentos de volta no repositório
+  pages: write      # publicar no GitHub Pages
+  id-token: write
+
+concurrency:
+  group: painel
+  cancel-in-progress: false
+
+jobs:
+  atualizar:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v4
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Gerar o painel (busca no ClickUp + análise + HTML)
+        env:
+          CLICKUP_TOKEN: ${{ secrets.CLICKUP_TOKEN }}
+        run: |
+          python clickup_dash.py
+          mkdir -p public
+          cp dashboard.html public/index.html
+
+      - name: Salvar estado dos adiamentos (para acumular entre rodadas)
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/state.json data/postpone_log.json
+          git commit -m "atualiza estado de adiamentos [skip ci]" || echo "nada a commitar"
+          git push
+
+      - name: Configurar GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Subir o site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+      - name: Publicar no GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4

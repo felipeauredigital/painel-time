@@ -1,0 +1,17 @@
+# segredos — NUNCA versionar
+.clickup_token
+token.txt
+
+# gerados / grandes — não versionar
+data/tasks.json
+data/assigned.json
+data/scan.json
+model.json
+dashboard.html
+public/
+__pycache__/
+*.pyc
+
+# OBS: data/state.json e data/postpone_log.json NÃO são ignorados de propósito —
+# eles guardam o histórico de adiamentos e precisam ser versionados para
+# acumular entre as rodadas automáticas na nuvem.
