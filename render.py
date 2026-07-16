@@ -152,6 +152,7 @@ h1,h2,.brand b,.card-h h3,.acard h3,.stat .n,.donut .c b,.banner h2{font-family:
 .pill{font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:6px;white-space:nowrap}
 .pill.list{background:var(--panel-2);color:var(--muted);border:1px solid var(--line)}
 .pill.proj{background:color-mix(in srgb,var(--gold) 15%,transparent);color:var(--gold-2);font-weight:700}
+.pill.adi{background:color-mix(in srgb,var(--high) 18%,transparent);color:var(--high);font-weight:700}
 :root[data-theme="dark"] .pill.proj{color:var(--gold)}
 .pill.status{background:var(--gold-soft);color:var(--gold-2)}
 :root[data-theme="dark"] .pill.status{color:var(--gold)}
@@ -277,6 +278,7 @@ h1,h2,.brand b,.card-h h3,.acard h3,.stat .n,.donut .c b,.banner h2{font-family:
 <script>
 const MODEL = __MODEL__;
 const MEM = {}; MODEL.members.forEach(m=>MEM[m.uid]=m);
+const PPBYID = {}; (MODEL.postpones||[]).forEach(p=>{PPBYID[p.id]=p;});
 const HKEY="clk_hidden_v1";
 let page="overview", team="all", selUid=MODEL.members[0]?.uid, dFrom=MODEL.window.to, dTo=MODEL.window.to;  // abre em "Hoje"
 const $=id=>document.getElementById(id);
@@ -304,13 +306,14 @@ function behavior(uid){
   return {doneN:done.length,created,onTime,late,noDue:done.length-wd.length,otRate,
     maxDay:pd.length?Math.max(...pd):0,bulkDays:pd.filter(n=>n>=5).length,avgDay:pd.length?done.length/pd.length:0,done};
 }
+// Adiamentos são cumulativos: mostramos SEMPRE o histórico total, independente do período.
 function postponesFor(uid){
-  return (MODEL.postpones||[]).map(p=>{const hist=p.history.filter(h=>h.at>=dFrom&&h.at<=dTo);
-    return {id:p.id,name:p.name,list:p.list,uids:p.uids||[],hist,inRange:hist.length};})
-    .filter(p=>p.uids.includes(uid)&&p.inRange>0).sort((a,b)=>b.inRange-a.inRange);
+  return (MODEL.postpones||[]).filter(p=>(p.uids||[]).includes(uid))
+    .map(p=>({id:p.id,name:p.name,list:p.list,uids:p.uids||[],hist:p.history,inRange:p.history.length}))
+    .sort((a,b)=>b.inRange-a.inRange);
 }
 function postponeCount(uid){return (MODEL.postpones||[]).filter(p=>(p.uids||[]).includes(uid))
-  .reduce((s,p)=>s+p.history.filter(h=>h.at>=dFrom&&h.at<=dTo).length,0);}
+  .reduce((s,p)=>s+p.history.length,0);}
 const MO=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
 const p2=n=>String(n).padStart(2,"0");
 const ymd=d=>d.getFullYear()+"-"+p2(d.getMonth()+1)+"-"+p2(d.getDate());
@@ -363,10 +366,11 @@ function donutGrad(parts){ // parts: [{v,color}] -> conic-gradient
 function taskRow(t,closable){
   const sv=sev(t.days),dl=t.days<=0?"hoje":t.days;
   const pr=(t.priority==="urgent"||t.priority==="high")?`<span class="pill pr ${t.priority}">${t.priority==="urgent"?"Urgente":"Alta"}</span>`:"";
+  const adi=PPBYID[t.id]?`<span class="pill adi">↪ ${PPBYID[t.id].count}× adiada</span>`:"";
   const cb=closable?`<button class="closebtn" data-close="${t.id}" title="Ocultar (já concluída / cliente saiu)">✓ Fechar</button>`:"<span></span>";
   return `<li class="trow"><span class="stripe s-${sv}"></span>
     <div style="min-width:0"><a class="tname" href="https://app.clickup.com/t/${t.id}" target="_blank" rel="noopener">${esc(t.name)}</a>
-    <div class="tmeta">${t.project?`<span class="pill proj">🏢 ${esc(t.project)}</span>`:""}<span class="pill list">${esc(t.list)}</span><span class="pill status ${t.bucket==="campanha"?"camp":""}">${esc(t.status)}</span>${pr}</div></div>
+    <div class="tmeta">${t.project?`<span class="pill proj">🏢 ${esc(t.project)}</span>`:""}<span class="pill list">${esc(t.list)}</span><span class="pill status ${t.bucket==="campanha"?"camp":""}">${esc(t.status)}</span>${pr}${adi}</div></div>
     <div class="tright"><div class="tdays ${sv}">${dl}${t.days>0?'<span style="font-size:9px"> d</span>':''}</div><div class="tdue">${esc(t.due)}</div></div>${cb}</li>`;
 }
 
@@ -408,7 +412,7 @@ function renderOverview(){
         <div><b>${tb.done}</b><span>concluídas</span></div>
         <div><b style="color:${tbOtColor}">${tbOt==null?"—":tbOt+"%"}</b><span>no prazo</span></div>
         <div><b>${tb.created}</b><span>criadas</span></div>
-        <div><b style="${tbPP?"color:var(--high)":""}">${tbPP}</b><span>adiamentos</span></div>
+        <div><b style="${tbPP?"color:var(--high)":""}">${tbPP}</b><span>adiamentos (total)</span></div>
       </div></div>
 
     <div class="stats">
@@ -448,7 +452,7 @@ function renderOverview(){
         <div class="mid"><b>${esc(x.m.name)}</b><span>${x.b.onTime}/${x.b.onTime+x.b.late} no prazo</span></div>
         <div class="end good">${x.b.otRate}%</div></div>`).join("")||'<div class="empty">Rode o script p/ ver comportamento</div>'}</div>
 
-    <div class="acard"><h3>Mais adiam prazo</h3><p class="sub">Adiamentos na janela ${dFrom} → ${dTo}</p>
+    <div class="acard"><h3>Mais adiam prazo</h3><p class="sub">Total de adiamentos registrados</p>
       ${ppBoard.map(x=>`<button class="arow" data-open="${x.m.uid}" style="width:100%;text-align:left;background:transparent;border:0;font-family:inherit;cursor:pointer">
         <div class="ava ${x.m.team==="E-SCALE"?"E":"F"}">${initials(x.m.name)}</div>
         <div class="mid"><b>${esc(x.m.name)}</b><span>${x.m.team}</span></div>
@@ -531,14 +535,14 @@ function renderPerson(){
       </div></div>
 
     <div class="card"><div class="card-h"><h3>Prazos adiados</h3>
-      <div class="r">${ppTotal} adiamento(s) em ${pp.length} tarefa(s) · na janela selecionada</div></div>
+      <div class="r">${ppTotal} adiamento(s) em ${pp.length} tarefa(s) · histórico total</div></div>
       ${pp.length?`<ul class="tasks" style="padding:4px 16px 8px">${pp.map(p=>{const last=p.hist[p.hist.length-1];
         return `<li class="trow"><span class="stripe s-high"></span>
           <div style="min-width:0"><a class="tname" href="https://app.clickup.com/t/${p.id}" target="_blank" rel="noopener">${esc(p.name)}</a>
           <div class="tmeta"><span class="pill list">${esc(p.list)}</span><span class="pill warn">${p.inRange}× adiado</span>
           <span class="pill list">último: ${esc(last.from)} → ${esc(last.to)}</span></div></div>
           <div class="tright"><div class="tdays high">${p.inRange}×</div><div class="tdue">adiado</div></div><span></span></li>`;}).join("")}</ul>`
-      :`<div class="empty">${(MODEL.postpones&&MODEL.postpones.length)?'Sem adiamentos desta pessoa na janela selecionada.':'Ainda sem adiamentos registrados — eles passam a ser contados a cada atualização do painel. Rode com frequência (ideal: 1×/dia) para acumular o histórico.'}</div>`}</div>
+      :`<div class="empty">${(MODEL.postpones&&MODEL.postpones.length)?'Sem adiamentos registrados desta pessoa.':'Ainda sem adiamentos registrados — eles passam a ser contados a cada atualização do painel. Rode com frequência (ideal: 1×/dia) para acumular o histórico.'}</div>`}</div>
   </div>
 
   <div class="col"><div class="acard"><h3>Time ${team!=="all"?"· "+team:""}</h3><p class="sub">${inTeamList.length} pessoas · clique para abrir</p>
