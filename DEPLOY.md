@@ -50,5 +50,5 @@ Mande esse link para os heads. Pronto — atualiza sozinho todo dia de manhã.
   (`data/state.json`, `data/postpone_log.json`, com nomes de tarefas/prazos) ficam visíveis —
   mas isso é o mesmo que o painel já mostra publicamente. Quando quiser **fechar com login**,
   a gente coloca o Cloudflare Access na frente (aí o repo volta a poder ser privado).
-- **Frequência:** 1×/dia às 08:00 BRT. Pra atualizar na hora: **Actions → Run workflow**.
+- **Frequência:** 1×/dia às 06:00 BRT. Pra atualizar na hora: **Actions → Run workflow**.
 - **Adiamentos de prazo:** cada rodada compara com a anterior e acumula (por isso o estado é salvo no repo).

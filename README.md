@@ -63,7 +63,7 @@ retrato dos prazos a cada rodada (`data/state.json`) e, na rodada seguinte, regi
 ### Rodar sozinho todo dia (Windows)
 Para acumular sem esforço, agende o `gerar-painel.bat` no Agendador de Tarefas. Ex. (todo dia 8h):
 ```
-schtasks /Create /SC DAILY /ST 08:00 /TN "Painel Aure" /TR "C:\Users\Felipe\teste\clickup-dashboard\gerar-painel.bat"
+schtasks /Create /SC DAILY /ST 06:00 /TN "Painel Aure" /TR "C:\Users\Felipe\teste\clickup-dashboard\gerar-painel.bat"
 ```
 
 ## Observações

@@ -2,7 +2,7 @@ name: Atualizar painel do time
 
 on:
   schedule:
-    - cron: "0 11 * * *"   # 11:00 UTC = 08:00 no horário de Brasília
+    - cron: "0 9 * * *"    # 09:00 UTC = 06:00 no horário de Brasília
   workflow_dispatch: {}     # botão "Run workflow" para rodar na hora
 
 permissions:
