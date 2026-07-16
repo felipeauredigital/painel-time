@@ -153,6 +153,9 @@ h1,h2,.brand b,.card-h h3,.acard h3,.stat .n,.donut .c b,.banner h2{font-family:
 .pill.list{background:var(--panel-2);color:var(--muted);border:1px solid var(--line)}
 .pill.proj{background:color-mix(in srgb,var(--gold) 15%,transparent);color:var(--gold-2);font-weight:700}
 .pill.adi{background:color-mix(in srgb,var(--high) 18%,transparent);color:var(--high);font-weight:700}
+.pill.okdone{background:color-mix(in srgb,var(--good) 16%,transparent);color:var(--good);font-weight:700}
+.pill.badlate{background:color-mix(in srgb,var(--crit) 16%,transparent);color:var(--crit);font-weight:700}
+.s-ok{background:var(--good)}
 :root[data-theme="dark"] .pill.proj{color:var(--gold)}
 .pill.status{background:var(--gold-soft);color:var(--gold-2)}
 :root[data-theme="dark"] .pill.status{color:var(--gold)}
@@ -302,9 +305,12 @@ function overdueAll(){const h=hidden();return MODEL.overdue.filter(t=>!h.has(t.i
 function overdueFor(uid){const h=hidden();return MODEL.overdue.filter(t=>t.uid===uid&&!h.has(t.id));}
 function overdueForAll(uid){return MODEL.overdue.filter(t=>t.uid===uid);}
 function malformedFor(uid){return MODEL.malformed.filter(t=>t.uid===uid);}
-function eventsFor(uid){return MODEL.events.filter(e=>e.uid===uid&&e.day>=dFrom&&e.day<=dTo);}
+function todayFor(uid){const h=hidden();return (MODEL.today||[]).filter(t=>t.uid===uid&&!h.has(t.id));}
+const inRng=day=>day>=dFrom&&day<=dTo;
+function doneFor(uid){return (MODEL.done||[]).filter(e=>e.uid===uid&&inRng(e.day));}
 function behavior(uid){
-  const ev=eventsFor(uid),done=ev.filter(e=>e.kind==="done"),created=ev.filter(e=>e.kind==="created").length;
+  const done=doneFor(uid);
+  const created=(MODEL.created||[]).filter(e=>e.uid===uid&&inRng(e.day)).length;
   const wd=done.filter(e=>!e.noDue),onTime=wd.filter(e=>!e.late).length,late=wd.filter(e=>e.late).length;
   const otRate=wd.length?Math.round(onTime/wd.length*100):null;
   const byDay={};done.forEach(e=>byDay[e.day]=(byDay[e.day]||0)+1);const pd=Object.values(byDay);
@@ -473,7 +479,7 @@ function renderPerson(){
   $("ptitle").textContent="Por pessoa";
   $("topright").innerHTML=`<div class="stepbtns"><button class="btn" data-step="-1">↑ Anterior</button><button class="btn" data-step="1">Próximo ↓</button></div>`;
   const m=MEM[selUid],od=overdueFor(selUid).sort((a,b)=>b.days-a.days),odAll=overdueForAll(selUid);
-  const hiddenN=odAll.length-od.length,mal=malformedFor(selUid),b=behavior(selUid),crit=od.filter(t=>t.days>30).length;
+  const hiddenN=odAll.length-od.length,mal=malformedFor(selUid),b=behavior(selUid),crit=od.filter(t=>t.days>30).length,td=todayFor(selUid);
   const tc=m.team==="E-SCALE"?"E":"F";
   const otColor=b.otRate==null?"var(--muted)":b.otRate>=80?"var(--good)":b.otRate>=50?"var(--high)":"var(--crit)";
   const doneTot=b.onTime+b.late+b.noDue;
@@ -503,6 +509,7 @@ function renderPerson(){
 
     <div class="stats">
       <div class="stat ${crit?'crit':'gold'}"><div class="ico">⏰</div><div class="n">${od.length}</div><div class="l">Em atraso${hiddenN?` · ${hiddenN} oculta(s)`:""}</div></div>
+      <div class="stat"><div class="ico">📅</div><div class="n">${td.length}</div><div class="l">Para fazer hoje</div></div>
       <div class="stat"><div class="ico">⚠️</div><div class="n">${mal.length}</div><div class="l">Mal cadastradas</div></div>
       <div class="stat"><div class="ico">✅</div><div class="n" style="color:${otColor}">${b.otRate==null?"—":b.otRate+"%"}</div><div class="l">No prazo</div></div>
       <div class="stat"><div class="ico">📈</div><div class="n">${b.doneN}</div><div class="l">Concluídas</div></div>
@@ -512,6 +519,15 @@ function renderPerson(){
 
     <div class="card" id="odsec"><div class="card-h"><h3>Em atraso</h3><div class="r"><span>${od.length} aberta(s)</span>${hiddenN?`<button class="linkish" id="showhidden">ver ${hiddenN} oculta(s)</button>`:""}</div></div>
       ${od.length?`<ul class="tasks" style="padding:4px 16px 8px">${od.map(t=>taskRow(t,true)).join("")}</ul>`:`<div class="empty">Sem tarefas em atraso 🎉</div>`}</div>
+
+    <div class="card" id="todaysec"><div class="card-h"><h3>Para fazer hoje</h3><div class="r">${td.length} tarefa(s) · vencem hoje</div></div>
+      ${td.length?`<ul class="tasks" style="padding:4px 16px 8px">${td.map(t=>{const prb=(t.priority==="urgent"||t.priority==="high")?`<span class="pill pr ${t.priority}">${t.priority==="urgent"?"Urgente":"Alta"}</span>`:"";
+        return `<li class="trow"><span class="stripe s-today"></span>
+          <div style="min-width:0"><a class="tname" href="https://app.clickup.com/t/${t.id}" target="_blank" rel="noopener">${esc(t.name)}</a>
+          <div class="tmeta">${t.project?`<span class="pill proj">🏢 ${esc(t.project)}</span>`:""}<span class="pill list">${esc(t.list)}</span><span class="pill status">${esc(t.status)}</span>${prb}</div></div>
+          <div class="tright"><div class="tdue">vence hoje</div></div>
+          <button class="closebtn" data-close="${t.id}" title="Ocultar">✓ Fechar</button></li>`;}).join("")}</ul>`
+      :`<div class="empty">Nada com prazo para hoje.</div>`}</div>
 
     ${mal.length?`<div class="card" id="malsec"><div class="card-h"><h3>Tarefas mal cadastradas</h3><div class="r">${mal.length} item(ns)</div></div>
       <ul class="tasks" style="padding:4px 16px 8px">${mal.map(t=>`<li class="trow"><span class="stripe s-none"></span>
@@ -540,6 +556,13 @@ function renderPerson(){
           <div class="chip"><b style="${ppTotal?'color:var(--high)':''}">${ppTotal}</b>adiamentos de prazo</div>
         </div>
       </div></div>
+
+    <div class="card"><div class="card-h"><h3>Concluídas</h3><div class="r">${b.doneN} no período · ${fmtBR(dFrom)} → ${fmtBR(dTo)}</div></div>
+      ${b.doneN?`<ul class="tasks" style="padding:4px 16px 0">${b.done.slice().sort((a,c)=>a.day<c.day?1:-1).slice(0,40).map(e=>`<li class="trow"><span class="stripe ${e.late?'s-crit':(e.noDue?'s-today':'s-ok')}"></span>
+        <div style="min-width:0"><a class="tname" href="https://app.clickup.com/t/${e.id}" target="_blank" rel="noopener">${esc(e.name)}</a>
+        <div class="tmeta">${e.project?`<span class="pill proj">🏢 ${esc(e.project)}</span>`:""}<span class="pill list">${esc(e.list)}</span><span class="pill ${e.late?'badlate':(e.noDue?'list':'okdone')}">${e.late?'em atraso':(e.noDue?'sem prazo':'no prazo')}</span></div></div>
+        <div class="tright"><div class="tdue">${fmtBR(e.day)}</div></div><span></span></li>`).join("")}</ul>${b.doneN>40?`<div style="padding:8px 16px 12px;font-size:12px;color:var(--muted)">Mostrando as 40 mais recentes de ${b.doneN}. Reduza o período para ver menos.</div>`:""}`
+      :`<div class="empty">Nenhuma conclusão nesse período.</div>`}</div>
 
     <div class="card"><div class="card-h"><h3>Prazos adiados</h3>
       <div class="r">${ppTotal} adiamento(s) em ${pp.length} tarefa(s)${ppHidden?` · <button class="linkish" data-showpp>ver ${ppHidden} oculta(s)</button>`:" · histórico total"}</div></div>

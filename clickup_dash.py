@@ -268,7 +268,7 @@ def analyze(tasks, record=False):
     today = datetime.datetime.now(TZ).date()
     if record:
         record_postponements(tasks, today)   # registra adiamentos de prazo vs. rodada anterior
-    overdue, malformed, events, seen = [], [], [], set()
+    overdue, malformed, done, today_tasks, created, seen = [], [], [], [], [], set()
     byid = {t["id"]: t for t in tasks}
     min_day = today
     for t in tasks:
@@ -284,26 +284,35 @@ def analyze(tasks, record=False):
         members_assigned = [i for i in assignees if i in MEMBERS]
 
         if closed:
-            # comportamento: conclusão (no prazo x atraso)
+            # concluída (no prazo x atraso) — guardamos detalhes para listar
             late = 1 if (due and closed > due) else 0
             nod = 1 if not due else 0
+            proj = resolve_project(t, byid)
             for uid in members_assigned:
-                events.append({"uid": uid, "kind": "done", "day": closed.isoformat(), "late": late, "noDue": nod})
+                done.append({"uid": uid, "id": t["id"], "name": t.get("name", ""), "list": lst,
+                             "project": proj, "day": closed.isoformat(), "late": late, "noDue": nod})
                 if closed < min_day: min_day = closed
         else:
-            # em atraso: aberta, prazo vencido, atribuída a um membro
-            if due and due < today and members_assigned:
-                bucket = "campanha" if lst in NAO_ACAO_LISTS else "acao"
+            # aberta com prazo, atribuída a um membro → atraso (vencido) ou "para hoje" (vence hoje)
+            if due and members_assigned:
                 pr = (t.get("priority") or {}).get("priority") if isinstance(t.get("priority"), dict) else None
                 proj = resolve_project(t, byid)
-                for uid in members_assigned:
-                    overdue.append({
-                        "id": t["id"], "name": t.get("name", ""),
-                        "status": (t.get("status") or {}).get("status", ""),
-                        "priority": pr, "list": lst, "project": proj,
-                        "due": due.strftime("%d/%m/%y"), "days": (today - due).days,
-                        "bucket": bucket, "uid": uid,
-                    })
+                st = (t.get("status") or {}).get("status", "")
+                if due < today:
+                    bucket = "campanha" if lst in NAO_ACAO_LISTS else "acao"
+                    for uid in members_assigned:
+                        overdue.append({
+                            "id": t["id"], "name": t.get("name", ""), "status": st,
+                            "priority": pr, "list": lst, "project": proj,
+                            "due": due.strftime("%d/%m/%y"), "days": (today - due).days,
+                            "bucket": bucket, "uid": uid,
+                        })
+                elif due == today:
+                    for uid in members_assigned:
+                        today_tasks.append({
+                            "id": t["id"], "name": t.get("name", ""), "status": st,
+                            "priority": pr, "list": lst, "project": proj, "uid": uid,
+                        })
             # mal cadastradas: só tarefas de topo abertas (subtarefa sem dono/prazo herda do pai)
             if not t.get("parent"):
                 problems = []
@@ -334,7 +343,7 @@ def analyze(tasks, record=False):
         cr = (t.get("creator") or {}).get("id")
         cd = to_date(t.get("date_created"))
         if cr in MEMBERS and cd:
-            events.append({"uid": cr, "kind": "created", "day": cd.isoformat(), "late": 0, "noDue": 0})
+            created.append({"uid": cr, "day": cd.isoformat()})
             if cd < min_day: min_day = cd
 
     avatars = _load(os.path.join(DATA, "avatars.json"), {})
@@ -347,12 +356,14 @@ def analyze(tasks, record=False):
         "members": members,
         "overdue": overdue,
         "malformed": malformed,
-        "events": events,
+        "today": today_tasks,
+        "done": done,
+        "created": created,
         "postpones": postpones,
     }
     json.dump(model, open(os.path.join(HERE, "model.json"), "w", encoding="utf-8"), ensure_ascii=False)
-    print(f"\nmodel.json: {len(overdue)} atrasos · {len(malformed)} mal cadastradas · {len(events)} eventos "
-          f"· {len(postpones)} tarefa(s) com adiamento · janela {min_day} → {today}")
+    print(f"\nmodel.json: {len(overdue)} atrasos · {len(today_tasks)} p/ hoje · {len(done)} concluídas · "
+          f"{len(malformed)} mal cadastradas · {len(postpones)} com adiamento · janela {min_day} → {today}")
     return model
 
 # ------------------------------------------------------------------ main
