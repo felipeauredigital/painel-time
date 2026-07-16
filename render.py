@@ -307,12 +307,13 @@ function behavior(uid){
     maxDay:pd.length?Math.max(...pd):0,bulkDays:pd.filter(n=>n>=5).length,avgDay:pd.length?done.length/pd.length:0,done};
 }
 // Adiamentos são cumulativos: mostramos SEMPRE o histórico total, independente do período.
-function postponesFor(uid){
-  return (MODEL.postpones||[]).filter(p=>(p.uids||[]).includes(uid))
+// Tarefas "fechadas" (ocultadas) somem daqui também.
+function postponesFor(uid){const h=hidden();
+  return (MODEL.postpones||[]).filter(p=>(p.uids||[]).includes(uid)&&!h.has(p.id))
     .map(p=>({id:p.id,name:p.name,list:p.list,uids:p.uids||[],hist:p.history,inRange:p.history.length}))
     .sort((a,b)=>b.inRange-a.inRange);
 }
-function postponeCount(uid){return (MODEL.postpones||[]).filter(p=>(p.uids||[]).includes(uid))
+function postponeCount(uid){const h=hidden();return (MODEL.postpones||[]).filter(p=>(p.uids||[]).includes(uid)&&!h.has(p.id))
   .reduce((s,p)=>s+p.history.length,0);}
 const MO=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
 const p2=n=>String(n).padStart(2,"0");
@@ -472,6 +473,7 @@ function renderPerson(){
   const otColor=b.otRate==null?"var(--muted)":b.otRate>=80?"var(--good)":b.otRate>=50?"var(--high)":"var(--crit)";
   const doneTot=b.onTime+b.late+b.noDue;
   const pp=postponesFor(selUid), ppTotal=pp.reduce((s,x)=>s+x.inRange,0);
+  const ppHidden=(MODEL.postpones||[]).filter(p=>(p.uids||[]).includes(selUid)&&hidden().has(p.id)).length;
   const tl=timeline(b.done,dFrom,dTo), tlMax=Math.max(1,...tl.map(x=>x.n));
   const lblStep=tl.length>14?Math.ceil(tl.length/8):1;   // afina os rótulos do eixo x quando há muitas barras
   const tlBars=tl.map((x,i)=>{const ot=x.n-x.late; const showLbl=(i%lblStep===0)||i===tl.length-1;
@@ -535,13 +537,14 @@ function renderPerson(){
       </div></div>
 
     <div class="card"><div class="card-h"><h3>Prazos adiados</h3>
-      <div class="r">${ppTotal} adiamento(s) em ${pp.length} tarefa(s) · histórico total</div></div>
+      <div class="r">${ppTotal} adiamento(s) em ${pp.length} tarefa(s)${ppHidden?` · <button class="linkish" data-showpp>ver ${ppHidden} oculta(s)</button>`:" · histórico total"}</div></div>
       ${pp.length?`<ul class="tasks" style="padding:4px 16px 8px">${pp.map(p=>{const last=p.hist[p.hist.length-1];
         return `<li class="trow"><span class="stripe s-high"></span>
           <div style="min-width:0"><a class="tname" href="https://app.clickup.com/t/${p.id}" target="_blank" rel="noopener">${esc(p.name)}</a>
           <div class="tmeta"><span class="pill list">${esc(p.list)}</span><span class="pill warn">${p.inRange}× adiado</span>
           <span class="pill list">último: ${esc(last.from)} → ${esc(last.to)}</span></div></div>
-          <div class="tright"><div class="tdays high">${p.inRange}×</div><div class="tdue">adiado</div></div><span></span></li>`;}).join("")}</ul>`
+          <div class="tright"><div class="tdays high">${p.inRange}×</div><div class="tdue">adiado</div></div>
+          <button class="closebtn" data-close="${p.id}" title="Ocultar (já resolvida / não vai mais ser feita)">✓ Fechar</button></li>`;}).join("")}</ul>`
       :`<div class="empty">${(MODEL.postpones&&MODEL.postpones.length)?'Sem adiamentos registrados desta pessoa.':'Ainda sem adiamentos registrados — eles passam a ser contados a cada atualização do painel. Rode com frequência (ideal: 1×/dia) para acumular o histórico.'}</div>`}</div>
   </div>
 
@@ -572,6 +575,7 @@ document.addEventListener("click",e=>{
   const st=e.target.closest("[data-step]"); if(st){const L=membersInTeam();const i=L.findIndex(m=>m.uid===selUid);selUid=L[(i+ +st.dataset.step+L.length)%L.length].uid;render();window.scrollTo({top:0});return;}
   const cl=e.target.closest("[data-close]"); if(cl){hideTask(cl.dataset.close);window._last=cl.dataset.close;showToast("Tarefa ocultada.");render();return;}
   const sh=e.target.closest("#showhidden"); if(sh){const h=hidden();const od=MODEL.overdue.filter(t=>t.uid===selUid&&h.has(t.id));if(confirm(`Reexibir ${od.length} tarefa(s) ocultada(s)?`)){od.forEach(t=>unhide(t.id));render();}return;}
+  const shp=e.target.closest("[data-showpp]"); if(shp){const h=hidden();const ids=(MODEL.postpones||[]).filter(p=>(p.uids||[]).includes(selUid)&&h.has(p.id)).map(p=>p.id);if(confirm(`Reexibir ${ids.length} tarefa(s) ocultada(s)?`)){ids.forEach(id=>unhide(id));render();}return;}
   const sc=e.target.closest("[data-scroll]"); if(sc){const el=$(sc.dataset.scroll);if(el)el.scrollIntoView({behavior:"smooth",block:"start"});return;}
   const at=e.target.closest("[data-goto-attention]"); if(at){$("attentioncard")?.scrollIntoView({behavior:"smooth"});return;}
   const tt=e.target.closest("#themetog button"); if(tt){document.documentElement.setAttribute("data-theme",tt.dataset.t);render();return;}
