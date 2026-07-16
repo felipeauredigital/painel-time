@@ -41,6 +41,7 @@ MEMBERS = {
     54912242:  ("Ray Junio",       "E-SCALE", "Gestor de Tráfego"),
     87447111:  ("Izabela Galdino", "E-SCALE", "Account"),
     87413647:  ("Rafael Alves",    "E-SCALE", "Gestor de Tráfego"),
+    81465000:  ("Felipe M. Assunção", "E-SCALE", "Account"),
     206579907: ("Thiago Zagnoli",  "FENIX",   "Head"),
     87318381:  ("Vinicius Andrade","FENIX",   "Account"),
     60944498:  ("Vitor Dumont",    "FENIX",   "Gestor de Tráfego"),
