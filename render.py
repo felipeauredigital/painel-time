@@ -151,6 +151,8 @@ h1,h2,.brand b,.card-h h3,.acard h3,.stat .n,.donut .c b,.banner h2{font-family:
 .tmeta{display:flex;gap:6px;flex-wrap:wrap;margin-top:5px;align-items:center}
 .pill{font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:6px;white-space:nowrap}
 .pill.list{background:var(--panel-2);color:var(--muted);border:1px solid var(--line)}
+.pill.proj{background:color-mix(in srgb,var(--gold) 15%,transparent);color:var(--gold-2);font-weight:700}
+:root[data-theme="dark"] .pill.proj{color:var(--gold)}
 .pill.status{background:var(--gold-soft);color:var(--gold-2)}
 :root[data-theme="dark"] .pill.status{color:var(--gold)}
 .pill.status.camp{background:var(--panel-2);color:var(--muted);border:1px solid var(--line)}
@@ -364,7 +366,7 @@ function taskRow(t,closable){
   const cb=closable?`<button class="closebtn" data-close="${t.id}" title="Ocultar (já concluída / cliente saiu)">✓ Fechar</button>`:"<span></span>";
   return `<li class="trow"><span class="stripe s-${sv}"></span>
     <div style="min-width:0"><a class="tname" href="https://app.clickup.com/t/${t.id}" target="_blank" rel="noopener">${esc(t.name)}</a>
-    <div class="tmeta"><span class="pill list">${esc(t.list)}</span><span class="pill status ${t.bucket==="campanha"?"camp":""}">${esc(t.status)}</span>${pr}</div></div>
+    <div class="tmeta">${t.project?`<span class="pill proj">🏢 ${esc(t.project)}</span>`:""}<span class="pill list">${esc(t.list)}</span><span class="pill status ${t.bucket==="campanha"?"camp":""}">${esc(t.status)}</span>${pr}</div></div>
     <div class="tright"><div class="tdays ${sv}">${dl}${t.days>0?'<span style="font-size:9px"> d</span>':''}</div><div class="tdue">${esc(t.due)}</div></div>${cb}</li>`;
 }
 

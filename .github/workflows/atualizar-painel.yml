@@ -1,6 +1,8 @@
 name: Atualizar painel do time
 
 on:
+  push:
+    branches: [main]        # ao enviar mudanças de código, republica (o commit de estado usa [skip ci])
   schedule:
     - cron: "0 9 * * *"    # 09:00 UTC = 06:00 no horário de Brasília
   workflow_dispatch: {}     # botão "Run workflow" para rodar na hora

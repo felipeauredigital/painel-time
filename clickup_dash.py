@@ -18,7 +18,7 @@ Uso:
      Opções:  --no-fetch  (reaproveita data/*.json já baixado, só recalcula e regera o HTML)
               --render-only (só regenera o HTML a partir do model.json)
 """
-import os, sys, json, time, datetime, urllib.request, urllib.parse, urllib.error
+import os, sys, json, time, datetime, re, urllib.request, urllib.parse, urllib.error
 
 # Console do Windows costuma ser cp1252; garante UTF-8 na saída.
 try:
@@ -185,6 +185,18 @@ def squad_team(task):
             return SQUAD_OPTION_TEAM.get(str(f["value"]))
     return None
 
+def resolve_project(t, byid):
+    """Cliente/projeto da tarefa: sobe a hierarquia até o card raiz (o card do cliente).
+    Se for uma tarefa de topo (sem pai), tenta a tag [XXX] no início do nome."""
+    seen, cur = set(), t
+    while cur.get("parent") and cur["parent"] in byid and cur["parent"] not in seen:
+        seen.add(cur["parent"])
+        cur = byid[cur["parent"]]
+    if cur is not t:
+        return (cur.get("name") or "").strip()
+    m = re.match(r"\s*\[([^\]]+)\]", t.get("name", "") or "")
+    return m.group(1).strip() if m else ""
+
 # ------------------------------------------------------------------ adiamentos de prazo
 # A API do ClickUp não dá o histórico de mudança de prazo. Então guardamos um retrato dos
 # prazos a cada rodada (state.json) e, comparando com o anterior, registramos todo adiamento
@@ -240,6 +252,7 @@ def analyze(tasks, record=False):
     if record:
         record_postponements(tasks, today)   # registra adiamentos de prazo vs. rodada anterior
     overdue, malformed, events, seen = [], [], [], set()
+    byid = {t["id"]: t for t in tasks}
     min_day = today
     for t in tasks:
         if t["id"] in seen:
@@ -265,11 +278,12 @@ def analyze(tasks, record=False):
             if due and due < today and members_assigned:
                 bucket = "campanha" if lst in NAO_ACAO_LISTS else "acao"
                 pr = (t.get("priority") or {}).get("priority") if isinstance(t.get("priority"), dict) else None
+                proj = resolve_project(t, byid)
                 for uid in members_assigned:
                     overdue.append({
                         "id": t["id"], "name": t.get("name", ""),
                         "status": (t.get("status") or {}).get("status", ""),
-                        "priority": pr, "list": lst,
+                        "priority": pr, "list": lst, "project": proj,
                         "due": due.strftime("%d/%m/%y"), "days": (today - due).days,
                         "bucket": bucket, "uid": uid,
                     })
