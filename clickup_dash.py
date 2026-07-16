@@ -157,7 +157,23 @@ def fetch_all(token):
         except ApiError as e:
             print(f"  [aviso] pulando lista '{lname}' (sem acesso ou erro): {str(e)[:80]}")
     json.dump(tasks, open(os.path.join(DATA, "tasks.json"), "w", encoding="utf-8"), ensure_ascii=False)
+    json.dump(fetch_avatars(token), open(os.path.join(DATA, "avatars.json"), "w", encoding="utf-8"), ensure_ascii=False)
     return tasks
+
+def fetch_avatars(token):
+    """uid -> URL da foto de perfil do ClickUp (públicas)."""
+    try:
+        data = api_get("/team", token=token)
+    except ApiError:
+        return {}
+    av = {}
+    for team in data.get("teams", []):
+        if str(team.get("id")) == TEAM_ID:
+            for m in team.get("members", []):
+                u = m.get("user", {}) or {}
+                if u.get("id") in MEMBERS and u.get("profilePicture"):
+                    av[str(u["id"])] = u["profilePicture"]
+    return av
 
 # ------------------------------------------------------------------ helpers
 def to_date(ms):
@@ -320,7 +336,9 @@ def analyze(tasks, record=False):
             events.append({"uid": cr, "kind": "created", "day": cd.isoformat(), "late": 0, "noDue": 0})
             if cd < min_day: min_day = cd
 
-    members = [{"uid": u, "name": MEMBERS[u][0], "team": MEMBERS[u][1], "role": MEMBERS[u][2]} for u in MEMBER_ORDER]
+    avatars = _load(os.path.join(DATA, "avatars.json"), {})
+    members = [{"uid": u, "name": MEMBERS[u][0], "team": MEMBERS[u][1], "role": MEMBERS[u][2],
+                "avatar": avatars.get(str(u))} for u in MEMBER_ORDER]
     postpones = aggregate_postponements()
     model = {
         "generated": today.strftime("%d/%m/%Y"),

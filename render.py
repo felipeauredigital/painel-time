@@ -286,6 +286,11 @@ const esc=s=>(s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;
 const sev=d=>d>30?"crit":d>7?"high":d>0?"med":"today";
 const SEVC={crit:"var(--crit)",high:"var(--high)",med:"var(--med)",today:"var(--today)"};
 const initials=n=>n.split(" ").filter(Boolean).slice(0,2).map(x=>x[0]).join("").toUpperCase();
+function avaHTML(m,cls,style){
+  const c=cls+" "+(m.team==="E-SCALE"?"E":"F"), st=style||"", ini=esc(initials(m.name||""));
+  if(m.avatar) return `<span class="${c}" style="position:relative;overflow:hidden;${st}">${ini}<img src="${esc(m.avatar)}" alt="" loading="lazy" referrerpolicy="no-referrer" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover" onerror="this.remove()"></span>`;
+  return `<span class="${c}" style="${st}">${ini}</span>`;
+}
 const hidden=()=>{try{return new Set(JSON.parse(localStorage.getItem(HKEY)||"[]"))}catch(e){return new Set()}};
 const setHidden=s=>localStorage.setItem(HKEY,JSON.stringify([...s]));
 const hideTask=id=>{const s=hidden();s.add(id);setHidden(s)};
@@ -432,14 +437,14 @@ function renderOverview(){
 
     <div class="card" id="rankcard"><div class="card-h"><h3>Ranking por pessoa</h3><div class="r">clique para abrir</div></div>
       <div class="pad ranklist">${rank.map(r=>{const c=r.c;return `<button class="arow" data-open="${r.uid}" style="width:100%;text-align:left;background:transparent;border:0;border-top:1px solid var(--line);font-family:inherit;cursor:pointer">
-        <div class="ava ${MEM[r.uid].team==="E-SCALE"?"E":"F"}">${initials(MEM[r.uid].name)}</div>
+        ${avaHTML(MEM[r.uid],"ava","")}
         <div class="mid"><b>${esc(MEM[r.uid].name)}</b><div class="bar-mini"><span style="display:flex;height:100%;width:${r.n/rmax*100}%">${["crit","high","med","today"].map(k=>c[k]?`<span style="height:100%;width:${c[k]/r.n*100}%;background:${SEVC[k]}"></span>`:"").join("")}</span></div></div>
         <div class="end ${r.n>10?'crit':''}">${r.n}</div></button>`;}).join("")||'<div class="empty">Sem atrasos 🎉</div>'}</div></div>
   </div>
 
   <div class="col">
     <div class="acard" id="attentioncard"><h3>Precisam de atenção</h3><p class="sub">Maior volume de atraso</p>
-      ${attention.map(r=>`<div class="arow"><div class="ava ${MEM[r.uid].team==="E-SCALE"?"E":"F"}">${initials(MEM[r.uid].name)}</div>
+      ${attention.map(r=>`<div class="arow">${avaHTML(MEM[r.uid],"ava","")}
         <div class="mid"><b>${esc(MEM[r.uid].name)}</b><span>${MEM[r.uid].team} · ${r.c.crit} crítica(s)</span></div>
         <button class="minibtn" data-open="${r.uid}">abrir</button></div>`).join("")||'<div class="empty">—</div>'}</div>
 
@@ -449,13 +454,13 @@ function renderOverview(){
         <a class="minibtn" href="https://app.clickup.com/t/${t.id}" target="_blank" rel="noopener">ver</a></div>`).join("")||'<div class="empty">Nenhuma 🎉</div>'}</div>
 
     <div class="acard"><h3>Melhores no prazo</h3><p class="sub">Janela ${dFrom} → ${dTo}</p>
-      ${best.map(x=>`<div class="arow"><div class="ava ${x.m.team==="E-SCALE"?"E":"F"}">${initials(x.m.name)}</div>
+      ${best.map(x=>`<div class="arow">${avaHTML(x.m,"ava","")}
         <div class="mid"><b>${esc(x.m.name)}</b><span>${x.b.onTime}/${x.b.onTime+x.b.late} no prazo</span></div>
         <div class="end good">${x.b.otRate}%</div></div>`).join("")||'<div class="empty">Rode o script p/ ver comportamento</div>'}</div>
 
     <div class="acard"><h3>Mais adiam prazo</h3><p class="sub">Total de adiamentos registrados</p>
       ${ppBoard.map(x=>`<button class="arow" data-open="${x.m.uid}" style="width:100%;text-align:left;background:transparent;border:0;font-family:inherit;cursor:pointer">
-        <div class="ava ${x.m.team==="E-SCALE"?"E":"F"}">${initials(x.m.name)}</div>
+        ${avaHTML(x.m,"ava","")}
         <div class="mid"><b>${esc(x.m.name)}</b><span>${x.m.team}</span></div>
         <div class="end" style="color:var(--high)">${x.n}×</div></button>`).join("")||'<div class="empty">Sem adiamentos registrados ainda. Rode o painel com frequência para acumular.</div>'}</div>
   </div></div>`;
@@ -485,7 +490,7 @@ function renderPerson(){
   const h=hidden();
   const rail=inTeamList.map(x=>{const n=MODEL.overdue.filter(t=>t.uid===x.uid&&!h.has(t.id)).length,ml=malformedFor(x.uid).length;
     return `<button class="pitem" data-uid="${x.uid}" aria-selected="${x.uid===selUid}">
-      <div class="ava ${x.team==="E-SCALE"?"E":"F"}" style="width:32px;height:32px;font-size:11px">${initials(x.name)}</div>
+      ${avaHTML(x,"ava","width:32px;height:32px;font-size:11px")}
       <span class="pn"><b>${esc(x.name)}</b><span>${x.role==="Gestor de Tráfego"?"Tráfego":x.role}</span></span>
       <span class="chipn ${n>10?'crit':''}">${n}</span></button>`;}).join("");
 
@@ -494,7 +499,7 @@ function renderPerson(){
       <h2>${esc(m.name)}</h2>
       <p>${esc(m.role)} · <span class="teamchip">${m.team}</span></p>
       <div class="cta"><button data-scroll="odsec">Ver ${od.length} em atraso</button>${mal.length?`<button class="ghost" data-scroll="malsec">${mal.length} mal cadastrada(s)</button>`:""}</div>
-    </div><div class="avatar">${initials(m.name)}</div></div>
+    </div>${avaHTML(m,"avatar","")}</div>
 
     <div class="stats">
       <div class="stat ${crit?'crit':'gold'}"><div class="ico">⏰</div><div class="n">${od.length}</div><div class="l">Em atraso${hiddenN?` · ${hiddenN} oculta(s)`:""}</div></div>
