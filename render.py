@@ -944,7 +944,7 @@ function renderChurnHistory(C,m){
   const yrBtn=(y,l)=>`<button class="cbtn" data-churn-year="${y}" aria-pressed="${churnYear===y}">${l}</button>`;
   const hasData=meses.length>0;
   $("root").innerHTML=`<div class="col">
-    ${churnNav('history')}
+    ${churnNav('history',false)}
     <div class="banner"><div class="bt"><h2>Histórico de churn</h2>
       <p>Churn % por squad, mês a mês — importado da planilha base. Verde ≤ super (${m.sup}%) · amarelo ≤ meta (${m.meta}%) · vermelho acima.</p>
       <div class="cta" style="gap:6px">${yrBtn('all','Todos')}${anos.map(y=>yrBtn(y,y)).join('')}</div></div><div class="avatar">📚</div></div>
@@ -964,7 +964,7 @@ function renderChurnProjection(C,m,hiddenSq){
   const proj=(C.projection||[]).map(p=>{const cl=(p.clients||[]).filter(c=>!hiddenSq.has(c.squad));return {mes:p.mes,clients:cl,n:cl.length,fee:cl.reduce((s,c)=>s+c.fee,0)};}).filter(p=>p.n);
   const totalN=proj.reduce((s,p)=>s+p.n,0), totalFee=proj.reduce((s,p)=>s+p.fee,0);
   $("root").innerHTML=`<div class="col">
-    ${churnNav('projection')}
+    ${churnNav('projection',false)}
     <div class="banner"><div class="bt"><h2>Projeção de churn</h2>
       <p>Cliente em <b>aviso</b> hoje sai ~30 dias depois. Projeção: <b>${totalN}</b> cliente(s) · <b>${BRL(totalFee)}</b> saindo nos próximos meses.</p></div><div class="avatar">📅</div></div>
     <div class="kpis">${proj.map(p=>`<div class="kpi"><div class="n" style="color:var(--crit)">${p.n}</div><div class="l">Churn projetado · ${monthLbl(p.mes)}</div><div class="s">${BRL(p.fee)}</div></div>`).join('')||'<div class="kpi"><div class="n">0</div><div class="l">Nada projetado</div><div class="s">Sem clientes em aviso</div></div>'}</div>
@@ -1003,7 +1003,7 @@ function renderChurnBonus(C,m,hiddenSq){
   }).filter(p=>p.carteira>0).sort((a,b)=>b.sup-a.sup);
   const totMeta=ppl.reduce((a,p)=>a+p.meta,0), totSup=ppl.reduce((a,p)=>a+p.sup,0);
   $("root").innerHTML=`<div class="col">
-    ${churnNav('bonus')}
+    ${churnNav('bonus',false)}
     <div class="banner"><div class="bt"><h2>Bonificação</h2>
       <p>Bônus = % do <b>Fee + Variável</b> da carteira: <b>super meta ⇒ 2%</b> · <b>meta ⇒ 1%</b> · acima ⇒ 0%. Account 65% / Gestor 35%.</p></div><div class="avatar">🏆</div></div>
 
@@ -1030,8 +1030,9 @@ function renderChurnInsights(C,m,hiddenSq){
   $("topright").innerHTML=`<div class="stepbtns"><button class="btn" data-churn-back>← Voltar</button></div>`;
   const squads=(C.squads||[]).filter(s=>s.squad!=="—"&&!hiddenSq.has(s.squad));
   const people=(C.people||[]).filter(p=>(p.nAtivo+p.nAviso)>0&&(p.squads||[]).some(s=>!hiddenSq.has(s)));
-  const CPV=x=>(x.churnPctVar!=null?x.churnPctVar:x.churnPct);
-  const FAV=x=>(x.feeAtivoVar!=null?x.feeAtivoVar:x.feeAtivo);
+  const useVar=churnBase==="var";
+  const CPV=x=>useVar&&x.churnPctVar!=null?x.churnPctVar:x.churnPct;   // respeita o toggle Fee/Fee+Variável
+  const FAV=x=>useVar&&x.feeAtivoVar!=null?x.feeAtivoVar:x.feeAtivo;
   const bonusPct=cp=>cp<=m.sup?2:cp<=m.meta?1:0;
   const sqSorted=[...squads].sort((a,b)=>CPV(a)-CPV(b));
   const best=sqSorted[0], worst=sqSorted[sqSorted.length-1];
