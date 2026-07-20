@@ -287,6 +287,8 @@ h1,h2,.brand b,.card-h h3,.acard h3,.stat .n,.donut .c b,.banner h2{font-family:
 .metaedit{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end}
 .metaedit label{font-size:12px;font-weight:600;color:var(--muted);display:flex;flex-direction:column;gap:6px}
 .metaedit input{font-family:inherit;font-size:16px;font-weight:800;color:var(--ink);background:var(--panel-2);border:1px solid var(--line);border-radius:9px;padding:9px 12px;width:96px}
+.metaedit .lancin{font-size:13px;font-weight:600;width:auto;min-width:150px;color-scheme:light dark}
+.metaedit select.lancin{cursor:pointer;min-width:120px}
 .sqtoggle{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-top:1px solid var(--line)}
 .sqtoggle:first-child{border-top:0}
 .switch{font-family:inherit;font-size:11.5px;font-weight:700;border:1px solid var(--line);background:var(--panel-2);color:var(--muted);border-radius:8px;padding:7px 12px;cursor:pointer}
@@ -703,11 +705,13 @@ function importCfg(file){const r=new FileReader();r.onload=()=>{try{const c=JSON
   showToast("Config importada.");render();}catch(e){alert("Arquivo de config inválido.");}};r.readAsText(file);}
 
 function renderChurn(){
-  const C=MODEL.churn||{squads:[],people:[],clients:[],totals:{}}, m=metas(), hiddenSq=new Set(m.hidden||[]);
+  pruneCommittedLanc();   // lançamentos já commitados saem do "pendente" p/ não contar em dobro
+  const C=applyPendingLanc(MODEL.churn||{squads:[],people:[],clients:[],totals:{}}), m=metas(), hiddenSq=new Set(m.hidden||[]);
   if(churnTab!=="overview"){
     if(churnTab==="history")return renderChurnHistory(C,m,churnScope);
     if(churnTab==="projection")return renderChurnProjection(C,m,hiddenSq,churnScope);
     if(churnTab==="bonus")return renderChurnBonus(C,m,hiddenSq,churnScope);
+    if(churnTab==="lanc")return renderChurnLanc(C,m,hiddenSq);
     if(churnTab==="insights")return renderChurnInsights(C,m,hiddenSq,churnScope);
   }
   if(churnScope.slice(0,3)==="sq:")return renderChurnSquad(churnScope.slice(3),C,m,hiddenSq);
@@ -947,7 +951,9 @@ function churnNav(label){
     <button class="cbtn" data-churn-base="fee" aria-pressed="${churnBase==='fee'}">Fee</button>
     <button class="cbtn" data-churn-base="var" aria-pressed="${churnBase==='var'}">Fee + Variável</button>`;
   const chip=label?`<span class="cscope">${esc(label)}<button class="cx" data-churn-back title="Ver a agência toda">✕</button></span>`:'';
-  return `<div class="cnav">${chip}${T('overview','Visão geral')}${T('history','Histórico')}${T('projection','Projeção')}${T('bonus','Bonificação')}${T('insights','Insights')}${base}</div>`;
+  const lp=lancLocal(); const nPend=lp.reducoes.length+lp.variaveis.length;
+  const pend=nPend?`<button class="cbtn" data-churn-tab="lanc" style="background:color-mix(in srgb,var(--high) 18%,transparent);color:var(--high);border-color:transparent" title="Lançamentos pendentes aplicados ao vivo — baixe o arquivo para valer para todos">⚠ ${nPend} pendente${nPend>1?'s':''}</button>`:'';
+  return `<div class="cnav">${chip}${T('overview','Visão geral')}${T('history','Histórico')}${T('projection','Projeção')}${T('bonus','Bonificação')}${T('lanc','Lançamentos')}${T('insights','Insights')}${pend}${base}</div>`;
 }
 
 function renderChurnHistory(C,m,scope){
@@ -1005,55 +1011,47 @@ function renderChurnProjection(C,m,hiddenSq,scope){
 }
 
 function renderChurnBonus(C,m,hiddenSq,scope){
-  const FAV=x=>(x.feeAtivoVar!=null?x.feeAtivoVar:x.feeAtivo);
   const CPV=x=>(x.churnPctVar!=null?x.churnPctVar:x.churnPct);
   $("ptitle").textContent="Churn · Bonificação";
   $("topright").innerHTML=`<div class="stepbtns"><button class="btn" data-churn-back>← Voltar</button></div>`;
   const sqName=scope.slice(0,3)==="sq:"?scope.slice(3):null, uid=scope.slice(0,3)==="pp:"?+scope.slice(3):null;
   const pPerson=uid!=null?(C.people||[]).find(x=>x.uid===uid):null, pSquads=pPerson?new Set(pPerson.squads||[]):null;
   const squads=(C.squads||[]).filter(s=>s.squad!=="—"&&!hiddenSq.has(s.squad)&&(!sqName||s.squad===sqName)&&(!pSquads||pSquads.has(s.squad)));
-  const AC=0.65,GE=0.35;
-  const bonusPct=cp=>cp<=m.sup?2:cp<=m.meta?1:0;   // super meta ⇒ 2% · meta ⇒ 1% · fora ⇒ 0
-  const rows=squads.map(s=>{const cp=CPV(s),bp=bonusPct(cp),base=FAV(s),pool=base*bp/100;
-    return {s,cp,bp,base,fee:s.feeAtivo,vari:(s.variavel||0),pool,meta1:base*0.01,sup2:base*0.02};});
+  const AC=0.65,GE=0.35, bonusPct=cp=>cp<=m.sup?2:cp<=m.meta?1:0;
+  const bb=C.bonusBase||{disponivel:false,bySquad:{},byPerson:{},mes:""}, usaSnap=!!bb.disponivel;
+  const baseSquad=s=>(usaSnap&&bb.bySquad[s.squad]!=null)?bb.bySquad[s.squad]:s.feeAtivo;   // fee do fechamento; senão carteira atual
+  const accGes=p=>usaSnap?(bb.byPerson[String(p.uid)]||{acc:0,ges:0}):{acc:(p.accFee||0),ges:(p.gesFee||0)};
+  const baseLbl=usaSnap?("fee da carteira ativa no fechamento de "+projMesLbl(bb.mes)):"carteira ativa atual (ainda sem fechamento do mês passado)";
+  const rows=squads.map(s=>{const cp=CPV(s),bp=bonusPct(cp),base=baseSquad(s),pool=base*bp/100;
+    return {s,cp,bp,base,pool,meta1:base*0.01,sup2:base*0.02};});
   const totPool=rows.reduce((a,r)=>a+r.pool,0), totBase=rows.reduce((a,r)=>a+r.base,0);
-  // ---- por pessoa: quanto cada um recebe SE bater meta (1%) e super meta (2%) ----
-  const ratioBySquad={}; squads.forEach(s=>ratioBySquad[s.squad]=s.feeAtivo>0?(s.variavel||0)/s.feeAtivo:0);
-  const zoneBySquad={}; squads.forEach(s=>zoneBySquad[s.squad]=bonusPct(CPV(s)));
-  const AVA={},NM={}; (C.people||[]).forEach(p=>{AVA[p.uid]=p.avatar;NM[p.uid]=p.name;});
-  const PB={};
-  (C.clients||[]).filter(c=>c.grp==="ativo"&&!hiddenSq.has(c.squad)&&(!sqName||c.squad===sqName)&&(uid==null||cInvolves(c,uid))).forEach(c=>{
-    const base=c.fee*(1+(ratioBySquad[c.squad]||0));
-    const add=(u,name,key)=>{if(!u)return;const p=PB[u]||(PB[u]={uid:u,name:(NM[u]||name),avatar:AVA[u],accBase:0,gesBase:0,squads:new Set()});p[key]+=base;p.squads.add(c.squad);};
-    (c.accountUids&&c.accountUids.length?c.accountUids:[c.accountUid]).forEach(u=>add(u,c.account,"accBase"));
-    (c.gestorUids&&c.gestorUids.length?c.gestorUids:[c.gestorUid]).forEach(u=>add(u,c.gestor,"gesBase"));
-  });
-  const ppl=Object.values(PB).map(p=>{const carteira=p.accBase+p.gesBase, roles=[];
-    if(p.accBase>0)roles.push("Account"); if(p.gesBase>0)roles.push("Gestor");
-    return {uid:p.uid,name:p.name,avatar:p.avatar,squads:[...p.squads],carteira,roles,
-      meta:p.accBase*0.01*AC+p.gesBase*0.01*GE, sup:p.accBase*0.02*AC+p.gesBase*0.02*GE};
+  const people=(C.people||[]).filter(p=>(p.nAtivo+p.nAviso)>0&&(p.squads||[]).some(s=>!hiddenSq.has(s))&&(!sqName||(p.squads||[]).includes(sqName))&&(uid==null||p.uid===uid));
+  const ppl=people.map(p=>{const b=accGes(p), carteira=(b.acc||0)*AC+(b.ges||0)*GE, roles=[];
+    if((b.acc||0)>0)roles.push("Account"); if((b.ges||0)>0)roles.push("Gestor");
+    return {uid:p.uid,name:p.name,avatar:p.avatar,squads:p.squads||[],roles,carteira,meta:carteira*0.01,sup:carteira*0.02};
   }).filter(p=>p.carteira>0).sort((a,b)=>b.sup-a.sup);
   const totMeta=ppl.reduce((a,p)=>a+p.meta,0), totSup=ppl.reduce((a,p)=>a+p.sup,0);
   $("root").innerHTML=`<div class="col">
     ${churnNav(scopeLabel(scope,C))}
     <div class="banner"><div class="bt"><h2>Bonificação</h2>
-      <p>Bônus = % do <b>Fee + Variável</b> da carteira: <b>super meta ⇒ 2%</b> · <b>meta ⇒ 1%</b> · acima ⇒ 0%. Account 65% / Gestor 35%.</p></div><div class="avatar">🏆</div></div>
+      <p>Bônus = % da <b>carteira ativa (fee)</b> pela meta de churn: <b>super meta ⇒ 2%</b> · <b>meta ⇒ 1%</b> · acima ⇒ 0%. Account 65% / Gestor 35%.</p></div><div class="avatar">🏆</div></div>
+    <div class="note"${usaSnap?'':' style="border-left-color:var(--high)"'}>Base do bônus: <b>${baseLbl}</b>, só projetos ativos.${usaSnap?'':' Assim que existir o fechamento do mês passado (o painel tira o retrato sozinho todo dia às 23h59), a base troca automaticamente.'}</div>
 
     <div class="card"><div class="card-h"><h3>Quanto cada pessoa recebe</h3><div class="r">se bater meta (1%) × super meta (2%)</div></div>
-      <div class="tblwrap"><table class="ctable"><thead><tr><th>Pessoa</th><th>Papel</th><th>Squad</th><th class="r">Carteira (Fee+Var)</th><th class="r">Se meta 🟡 (1%)</th><th class="r">Se super meta 🟢 (2%)</th></tr></thead>
+      <div class="tblwrap"><table class="ctable"><thead><tr><th>Pessoa</th><th>Papel</th><th>Squad</th><th class="r">Base ponderada</th><th class="r">Se meta 🟡 (1%)</th><th class="r">Se super 🟢 (2%)</th></tr></thead>
       <tbody>${ppl.map(p=>`<tr><td><div style="display:flex;align-items:center;gap:9px">${avaChurn(p)}<b>${esc(p.name||"—")}</b></div></td>
-        <td>${p.roles.join(" · ")||"—"}</td><td>${p.squads.map(s=>`<span class="sqtag">${esc(s)}</span>`).join(" ")}</td>
+        <td>${p.roles.join(" · ")||"—"}</td><td>${(p.squads||[]).map(s=>`<span class="sqtag">${esc(s)}</span>`).join(" ")}</td>
         <td class="r fee">${BRL(p.carteira)}</td><td class="r fee" style="color:var(--high)">${BRL(p.meta)}</td><td class="r fee" style="color:var(--good)">${BRL(p.sup)}</td></tr>`).join("")||'<tr><td colspan="6" class="empty">Sem pessoas.</td></tr>'}
       <tr style="border-top:2px solid var(--line-2)"><td><b>Total</b></td><td></td><td></td><td class="r fee">${BRL(ppl.reduce((a,p)=>a+p.carteira,0))}</td><td class="r fee" style="color:var(--high)"><b>${BRL(totMeta)}</b></td><td class="r fee" style="color:var(--good)"><b>${BRL(totSup)}</b></td></tr></tbody></table></div>
-      <div style="padding:10px 16px"><div class="note">Cada cliente entra na carteira do seu <b>Account</b> (recebe 65%) e do seu <b>Gestor</b> (35%). <b>Se meta</b> = 1% da carteira Fee+Variável (ponderada pelo papel); <b>Se super meta</b> = 2%. O que cada um leva no mês depende do churn do squad dele.</div></div></div>
+      <div style="padding:10px 16px"><div class="note">Cada cliente entra na carteira do seu <b>Account</b> (65%) e do seu <b>Gestor</b> (35%). "Base ponderada" = fee do fechamento × peso do papel. <b>Se meta</b> = 1% · <b>Se super</b> = 2%. O que cada um leva no mês depende do churn do squad dele.</div></div></div>
 
-    <div class="card"><div class="card-h"><h3>Bônus por squad — mês atual</h3><div class="r">pela meta batida agora</div></div>
-      <div class="tblwrap"><table class="ctable"><thead><tr><th>Squad</th><th class="r">Churn</th><th>Faixa</th><th class="r">Fee</th><th class="r">Variável</th><th class="r">Base</th><th class="r">Bônus atual</th><th class="r">Se meta 1%</th><th class="r">Se super 2%</th></tr></thead>
+    <div class="card"><div class="card-h"><h3>Bônus por squad</h3><div class="r">pela meta batida</div></div>
+      <div class="tblwrap"><table class="ctable"><thead><tr><th>Squad</th><th class="r">Churn</th><th>Faixa</th><th class="r">Base (fechamento)</th><th class="r">Bônus atual</th><th class="r">Se meta 1%</th><th class="r">Se super 2%</th></tr></thead>
       <tbody>${rows.map(r=>{const zz=zoneOf(r.cp,m);return `<tr><td><b>${esc(r.s.squad)}</b></td><td class="r"><b style="color:${ZONEC[zz]}">${r.cp}%</b></td>
-        <td><span class="zbadge ${zz}">${r.bp?r.bp+'%':'—'}</span></td><td class="r fee">${BRL(r.fee)}</td><td class="r fee" style="color:var(--gold-2)">${BRL(r.vari)}</td><td class="r fee">${BRL(r.base)}</td>
+        <td><span class="zbadge ${zz}">${r.bp?r.bp+'%':'—'}</span></td><td class="r fee">${BRL(r.base)}</td>
         <td class="r fee"${r.pool?' style="color:var(--good)"':''}>${r.pool?BRL(r.pool):'—'}</td><td class="r" style="color:var(--high)">${BRL(r.meta1)}</td><td class="r" style="color:var(--good)">${BRL(r.sup2)}</td></tr>`;}).join('')}
-      <tr style="border-top:2px solid var(--line-2)"><td><b>Total</b></td><td></td><td></td><td class="r fee">${BRL(rows.reduce((a,r)=>a+r.fee,0))}</td><td class="r fee" style="color:var(--gold-2)">${BRL(rows.reduce((a,r)=>a+r.vari,0))}</td><td class="r fee">${BRL(totBase)}</td><td class="r fee"><b>${BRL(totPool)}</b></td><td class="r">${BRL(totBase*0.01)}</td><td class="r">${BRL(totBase*0.02)}</td></tr></tbody></table></div></div>
-    <div class="note">Regra: <b>super meta</b> (churn ≤ ${m.sup}%) ⇒ <b>2%</b> · <b>meta</b> (churn ≤ ${m.meta}%) ⇒ <b>1%</b> · acima ⇒ 0%. Base = fee + variável da carteira ativa. Split Account 65% / Gestor 35%. Metas em <b>Times &amp; metas</b>.</div>
+      <tr style="border-top:2px solid var(--line-2)"><td><b>Total</b></td><td></td><td></td><td class="r fee">${BRL(totBase)}</td><td class="r fee"><b>${BRL(totPool)}</b></td><td class="r">${BRL(totBase*0.01)}</td><td class="r">${BRL(totBase*0.02)}</td></tr></tbody></table></div></div>
+    <div class="note">Regra: <b>super meta</b> (churn ≤ ${m.sup}%) ⇒ <b>2%</b> · <b>meta</b> (churn ≤ ${m.meta}%) ⇒ <b>1%</b> · acima ⇒ 0%. Base = ${esc(baseLbl)}. Split Account 65% / Gestor 35%. Metas em <b>Times &amp; metas</b>.</div>
   </div>`;
 }
 
@@ -1123,6 +1121,155 @@ function renderChurnInsights(C,m,hiddenSq,scope){
   </div>`;
 }
 
+/* ---------------- CHURN · LANÇAMENTOS (redução + variável, avulsos) ---------------- */
+const LKEY="clk_lanc_v1";
+function lancLocal(){try{return Object.assign({variaveis:[],reducoes:[]},JSON.parse(localStorage.getItem(LKEY)||"{}"))}catch(e){return{variaveis:[],reducoes:[]}}}
+function setLancLocal(l){localStorage.setItem(LKEY,JSON.stringify(l))}
+/* ---- Salvar automático no GitHub (o painel commita sozinho o lancamentos.json) ---- */
+const GHKEY="clk_gh_token_v1";
+const GH_OWNER="felipeauredigital", GH_REPO="painel-time", GH_BRANCH="main", GH_PATH="data/lancamentos.json";
+function ghToken(){return (localStorage.getItem(GHKEY)||"").trim();}
+function setGhToken(t){t?localStorage.setItem(GHKEY,t.trim()):localStorage.removeItem(GHKEY);}
+function newLancId(){return Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,8);}
+function b64encU(s){return btoa(unescape(encodeURIComponent(s)));}
+function b64decU(b){return decodeURIComponent(escape(atob(String(b).replace(/\n/g,""))));}
+// tira do navegador os lançamentos que já entraram no arquivo commitado (dedup por id) — evita contar em dobro
+function pruneCommittedLanc(){
+  const com=MODEL.lancamentos||{variaveis:[],reducoes:[]}, loc=lancLocal();
+  const ids=new Set([...(com.variaveis||[]),...(com.reducoes||[])].map(e=>e&&e.id).filter(Boolean));
+  if(!ids.size)return; let ch=false;
+  ["variaveis","reducoes"].forEach(k=>{const b=loc[k].length; loc[k]=loc[k].filter(e=>!(e&&e.id&&ids.has(e.id))); if(loc[k].length!==b)ch=true;});
+  if(ch)setLancLocal(loc);
+}
+async function ghApi(method,url,body){
+  const r=await fetch(url,{method,headers:{"Authorization":"Bearer "+ghToken(),"Accept":"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28"},body:body?JSON.stringify(body):undefined});
+  if(!r.ok){let t="";try{t=(await r.json()).message||"";}catch(e){} throw new Error("GitHub "+r.status+(t?" — "+t:""));}
+  return r.json();
+}
+// lê o arquivo atual no repo, mescla as pendências (por id) que faltam e grava de volta
+async function pushLancToGitHub(){
+  if(!ghToken())throw new Error("sem token");
+  const url="https://api.github.com/repos/"+GH_OWNER+"/"+GH_REPO+"/contents/"+encodeURIComponent(GH_PATH).replace(/%2F/g,"/");
+  let cur=null;
+  try{cur=await ghApi("GET",url+"?ref="+GH_BRANCH);}catch(e){if(!/GitHub 404/.test(e.message))throw e;}
+  let doc={variaveis:[],reducoes:[]};
+  if(cur&&cur.content){try{doc=JSON.parse(b64decU(cur.content));}catch(e){}}
+  doc.variaveis=doc.variaveis||[]; doc.reducoes=doc.reducoes||[];
+  const has=(arr,id)=>arr.some(e=>e&&e.id===id);
+  const loc=lancLocal(); let added=0;
+  ["variaveis","reducoes"].forEach(k=>loc[k].forEach(e=>{if(e&&e.id&&!has(doc[k],e.id)){doc[k].push(e);added++;}}));
+  if(!added)return {added:0};
+  doc._doc="Lancamentos avulsos (variaveis=comissao + reducoes=desconto/servico) — data/lancamentos.json. Editado pelo painel.";
+  const body={message:"Lancamentos: +"+added+" via painel",content:b64encU(JSON.stringify(doc,null,2)),branch:GH_BRANCH};
+  if(cur&&cur.sha)body.sha=cur.sha;
+  await ghApi("PUT",url,body);
+  return {added};
+}
+// aplica os lançamentos PENDENTES (localStorage) ao churn ao vivo, para o efeito aparecer na hora
+function applyPendingLanc(C){
+  const loc=lancLocal(); if(!(loc.reducoes.length||loc.variaveis.length))return C;
+  const mes=(MODEL.lancamentos&&MODEL.lancamentos.mesAtual)||MODEL.window.to.slice(0,7);
+  const redBy={},varBy={};
+  loc.reducoes.forEach(e=>{if((e.mes||mes)===mes)redBy[e.squad]=(redBy[e.squad]||0)+(+e.valor||0);});
+  loc.variaveis.forEach(e=>{if((e.mes||mes)===mes)varBy[e.squad]=(varBy[e.squad]||0)+(+e.valor||0);});
+  const cp=(atv,avi)=>(atv+avi)?+((avi/(atv+avi))*100).toFixed(2):0, r2=x=>Math.round(x*100)/100;
+  const squads=(C.squads||[]).map(s=>{const pr=redBy[s.squad]||0,pv=varBy[s.squad]||0; if(!pr&&!pv)return s;
+    const red=(s.reducao||0)+pr, vari=(s.variavel||0)+pv;
+    return Object.assign({},s,{reducao:r2(red),variavel:r2(vari),feeAtivoVar:r2(s.feeAtivo+vari),
+      churnPct:cp(s.feeAtivo,s.feeAviso+red),churnPctVar:cp(s.feeAtivo+vari,s.feeAviso+red)});});
+  const tAtv=squads.reduce((a,s)=>a+s.feeAtivo,0),tAvi=squads.reduce((a,s)=>a+s.feeAviso,0),
+        tVar=squads.reduce((a,s)=>a+(s.variavel||0),0),tRed=squads.reduce((a,s)=>a+(s.reducao||0),0);
+  const totals=Object.assign({},C.totals,{variavel:r2(tVar),reducao:r2(tRed),feeAtivoVar:r2(tAtv+tVar),
+    churnPct:cp(tAtv,tAvi+tRed),churnPctVar:cp(tAtv+tVar,tAvi+tRed)});
+  return Object.assign({},C,{squads,totals,_pending:loc.reducoes.length+loc.variaveis.length});
+}
+function addLancFromForm(tipo){
+  const l=lancLocal(), mes=(MODEL.lancamentos&&MODEL.lancamentos.mesAtual)||MODEL.window.to.slice(0,7);
+  if(tipo==="reducao"){
+    const sq=$("redSquad").value, cli=($("redCli").value||"").trim(), val=parseFloat($("redVal").value), mot=($("redMot").value||"").trim(), data=$("redData").value;
+    if(!cli||!(val>0)){alert("Preencha o cliente e um valor maior que zero.");return;}
+    l.reducoes.push({id:newLancId(),cliente:cli,squad:sq,valor:val,motivo:mot,data:data,mes:(data?data.slice(0,7):mes)});
+  }else{
+    const sq=$("varSquad").value, cli=($("varCli").value||"").trim(), val=parseFloat($("varVal").value);
+    if(!cli||!(val>0)){alert("Preencha o cliente e um valor maior que zero.");return;}
+    l.variaveis.push({id:newLancId(),cliente:cli,squad:sq,valor:val,mes:mes});
+  }
+  setLancLocal(l); render();  // aplica na hora aqui no painel (localStorage)
+  if(ghToken()){
+    showToast("Salvando no repositório…");
+    pushLancToGitHub().then(r=>showToast("✓ Salvo no repositório. Já aplicado aqui na hora; no ar para toda a equipe em ~10 min."))
+      .catch(err=>showToast("⚠️ Não salvou no GitHub ("+err.message+"). Ficou pendente neste navegador — confira o token em Salvar automático."));
+  }else{
+    showToast("Aplicado aqui na hora (pendente). Ligue o Salvar automático (token) para valer para todos sozinho, ou baixe o arquivo.");
+  }
+}
+function exportLanc(){
+  const base=MODEL.lancamentos||{variaveis:[],reducoes:[]}, loc=lancLocal();
+  const clean=a=>(a||[]).map(e=>{const o=Object.assign({},e);delete o._i;return o;});
+  const merged={_doc:"Lancamentos avulsos: variaveis (comissao) + reducoes (desconto/servico). Colocar em data/lancamentos.json.",
+    variaveis:[...clean(base.variaveis),...clean(loc.variaveis)],reducoes:[...clean(base.reducoes),...clean(loc.reducoes)]};
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(merged,null,2)],{type:"application/json"}));
+  a.download="lancamentos.json";document.body.appendChild(a);a.click();a.remove();
+  showToast("Arquivo baixado. Me envie (ou faça commit em data/lancamentos.json) para valer para todos.");
+}
+function renderChurnLanc(C,m,hiddenSq){
+  $("ptitle").textContent="Churn · Lançamentos";
+  $("topright").innerHTML=`<div class="stepbtns"><button class="btn" data-churn-back>← Voltar</button></div>`;
+  const squads=(C.squads||[]).filter(s=>s.squad!=="—"&&!hiddenSq.has(s.squad));
+  const mes=(MODEL.lancamentos&&MODEL.lancamentos.mesAtual)||MODEL.window.to.slice(0,7);
+  const committed=MODEL.lancamentos||{variaveis:[],reducoes:[]}, loc=lancLocal();
+  const sqOpts=squads.map(s=>`<option value="${esc(s.squad)}">${esc(s.squad)}</option>`).join('');
+  const nPend=loc.reducoes.length+loc.variaveis.length;
+  const tok=ghToken();
+  const redRow=(e,pend,i)=>`<tr><td><b>${esc(e.cliente||'—')}</b></td><td><span class="sqtag">${esc(e.squad||'—')}</span></td><td>${esc(e.motivo||'—')}</td><td class="r fee" style="color:var(--crit)">${BRL(e.valor||0)}</td><td class="r">${esc(e.data||e.mes||mes)}</td><td>${pend?`<button class="closebtn" data-lanc-del="reducoes:${i}">remover</button>`:'<span class="pill okdone">salvo</span>'}</td></tr>`;
+  const varRow=(e,pend,i)=>`<tr><td><b>${esc(e.cliente||'—')}</b></td><td><span class="sqtag">${esc(e.squad||'—')}</span></td><td class="r fee" style="color:var(--gold-2)">${BRL(e.valor||0)}</td><td class="r">${esc(e.mes||mes)}</td><td>${pend?`<button class="closebtn" data-lanc-del="variaveis:${i}">remover</button>`:'<span class="pill okdone">salvo</span>'}</td></tr>`;
+  $("root").innerHTML=`<div class="col">
+    ${churnNav('')}
+    <div class="banner"><div class="bt"><h2>Lançamentos — ${projMesLbl(mes)}</h2>
+      <p>Adicione <b>reduções</b> (desconto / tirou serviço → entram no churn como valor em risco) e <b>variável</b> (comissão → entra na base Fee + Variável), vinculadas ao cliente.</p></div><div class="avatar">✍️</div></div>
+
+    <div class="card"><div class="card-h"><h3>🔗 Salvar automático</h3><div class="r">${tok?'<span style="color:var(--good)">ligado</span>':'<span style="color:var(--high)">desligado</span>'}</div></div>
+      <div class="pad">${tok
+        ? `<div class="note" style="border-left-color:var(--good)">✅ <b>Salvar automático ligado.</b> Ao adicionar um lançamento, o painel grava sozinho em <code>data/lancamentos.json</code> — você <b>não precisa baixar nem me mandar nada</b>. Aplica aqui na hora e entra no ar para toda a equipe em ~10 min.
+           <div style="margin-top:10px"><button class="btn" data-gh-clear>Desconectar token deste navegador</button></div></div>`
+        : `<div class="metaedit"><label style="grid-column:1/-1">Token do GitHub — <span style="color:var(--muted)">fine-grained, só o repositório <b>painel-time</b>, permissão <b>Contents: Read and write</b></span><input id="ghTok" class="lancin" type="password" placeholder="github_pat_..." autocomplete="off"></label>
+           <button class="applybtn" data-gh-save>Conectar</button></div>
+           <div class="note" style="margin-top:10px">Cole o token <b>uma vez</b>: a partir daí o painel salva os lançamentos sozinho, sem baixar arquivo. O token fica <b>só neste navegador</b> (localStorage) — nunca vai para o código, para o repositório nem para o site. <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">Gerar token no GitHub →</a></div>`}
+      </div></div>
+    ${nPend?`<div class="note" style="border-left-color:var(--high)">⚠️ Você tem <b>${nPend} lançamento(s) pendente(s)</b> neste navegador${tok?' que ainda não confirmaram no repositório':', salvos só aqui'}. ${tok?'<button class="btn" data-gh-retry style="margin-left:6px">↻ Tentar salvar agora</button>':'Ligue o <b>Salvar automático</b> acima, ou baixe o arquivo e me envie.'}
+      <div style="margin-top:10px"><button class="applybtn" data-lanc-export>⭳ Baixar arquivo (lancamentos.json)</button></div></div>`:''}
+
+    <div class="card"><div class="card-h"><h3>➖ Adicionar redução / desconto</h3><div class="r">entra no churn como valor em risco</div></div>
+      <div class="pad"><div class="metaedit">
+        <label>Squad<select id="redSquad" class="lancin">${sqOpts}</select></label>
+        <label>Cliente<input id="redCli" class="lancin" placeholder="nome do cliente"></label>
+        <label>Valor (R$)<input id="redVal" class="lancin" type="number" min="0" step="50"></label>
+        <label>Motivo<input id="redMot" class="lancin" placeholder="desconto / tirou serviço"></label>
+        <label>Data<input id="redData" class="lancin" type="date" value="${MODEL.window.to}"></label>
+        <button class="applybtn" data-lanc-add="reducao">Adicionar redução</button>
+      </div></div></div>
+
+    <div class="card"><div class="card-h"><h3>➕ Adicionar variável (comissão)</h3><div class="r">entra na base Fee + Variável</div></div>
+      <div class="pad"><div class="metaedit">
+        <label>Squad<select id="varSquad" class="lancin">${sqOpts}</select></label>
+        <label>Cliente<input id="varCli" class="lancin" placeholder="nome do cliente"></label>
+        <label>Valor (R$)<input id="varVal" class="lancin" type="number" min="0" step="50"></label>
+        <button class="applybtn" data-lanc-add="variavel">Adicionar variável</button>
+      </div></div></div>
+
+    <div class="card"><div class="card-h"><h3>Reduções do mês</h3><div class="r">${projMesLbl(mes)} · aplicadas no churn: ${BRL((C.totals&&C.totals.reducao)||0)}</div></div>
+      ${(committed.reducoes.length||loc.reducoes.length)?`<div class="tblwrap"><table class="ctable"><thead><tr><th>Cliente</th><th>Squad</th><th>Motivo</th><th class="r">Valor</th><th class="r">Data</th><th>Status</th></tr></thead>
+      <tbody>${committed.reducoes.map(e=>redRow(e,false)).join('')}${loc.reducoes.map((e,i)=>redRow(e,true,i)).join('')}</tbody></table></div>`:'<div class="empty">Nenhuma redução lançada neste mês.</div>'}</div>
+
+    <div class="card"><div class="card-h"><h3>Variável lançada</h3><div class="r">${projMesLbl(mes)}</div></div>
+      ${(committed.variaveis.length||loc.variaveis.length)?`<div class="tblwrap"><table class="ctable"><thead><tr><th>Cliente</th><th>Squad</th><th class="r">Valor</th><th class="r">Mês</th><th>Status</th></tr></thead>
+      <tbody>${committed.variaveis.map(e=>varRow(e,false)).join('')}${loc.variaveis.map((e,i)=>varRow(e,true,i)).join('')}</tbody></table></div>`:'<div class="empty">Nenhuma variável lançada por aqui ainda.</div>'}</div>
+
+    <div class="note">Com o <b>Salvar automático</b> ligado, adicionar já grava no repositório e reflete para todos na próxima rodada — sem baixar nada. Sem o token, o lançamento fica só neste navegador e você usa o <b>Baixar arquivo</b> como plano B.
+      <div style="margin-top:10px"><button class="btn" data-lanc-export>⭳ Baixar arquivo (lancamentos.json)</button></div></div>
+  </div>`;
+}
+
 /* ---------------- TIMES & METAS ---------------- */
 function renderTimes(){
   $("ptitle").textContent="Times & metas";
@@ -1179,6 +1326,14 @@ document.addEventListener("click",e=>{
   const ctab=e.target.closest("[data-churn-tab]"); if(ctab){churnTab=ctab.dataset.churnTab;page="churn";render();window.scrollTo({top:0});return;}
   const cop=e.target.closest("[data-churn-open]"); if(cop){const v=cop.dataset.churnOpen;churnScope=(v==="overview"||v==="all")?"all":v;churnTab="overview";page="churn";render();window.scrollTo({top:0});return;}
   const cbk=e.target.closest("[data-churn-back]"); if(cbk){churnScope="all";churnTab="overview";render();window.scrollTo({top:0});return;}
+  const la=e.target.closest("[data-lanc-add]"); if(la){addLancFromForm(la.dataset.lancAdd);return;}
+  const ld=e.target.closest("[data-lanc-del]"); if(ld){const p=ld.dataset.lancDel.split(":");const l=lancLocal();if(l[p[0]])l[p[0]].splice(+p[1],1);setLancLocal(l);render();return;}
+  const lx=e.target.closest("[data-lanc-export]"); if(lx){exportLanc();return;}
+  const gsv=e.target.closest("[data-gh-save]"); if(gsv){const t=($("ghTok").value||"").trim(); if(!t){alert("Cole o token do GitHub.");return;} setGhToken(t);
+    showToast("Testando o token…"); pushLancToGitHub().then(r=>showToast(r.added?("✓ Conectado. "+r.added+" pendência(s) enviada(s) ao repositório."):"✓ Conectado ao GitHub. Salvar automático ligado."))
+      .catch(err=>{showToast("⚠️ Token não funcionou: "+err.message+". Confira as permissões (Contents: Read and write no repo painel-time).");}); render(); return;}
+  const gcl=e.target.closest("[data-gh-clear]"); if(gcl){setGhToken(""); showToast("Token removido deste navegador."); render(); return;}
+  const grt=e.target.closest("[data-gh-retry]"); if(grt){showToast("Salvando no repositório…"); pushLancToGitHub().then(r=>showToast(r.added?("✓ "+r.added+" lançamento(s) salvo(s) no repositório."):"✓ Já estava tudo salvo no repositório.")).catch(err=>showToast("⚠️ Não salvou: "+err.message)); return;}
   const cst=e.target.closest("[data-churn-step]"); if(cst){churnStep(+cst.dataset.churnStep);return;}
   const cbs=e.target.closest("[data-churn-base]"); if(cbs){churnBase=cbs.dataset.churnBase;render();return;}
   const cyr=e.target.closest("[data-churn-year]"); if(cyr){churnYear=cyr.dataset.churnYear;render();return;}

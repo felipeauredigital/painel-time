@@ -1,0 +1,5 @@
+{
+  "_doc": "Lancamentos avulsos compartilhados. 'variaveis': comissao variavel por cliente/squad no mes. 'reducoes': desconto/servico retirado (entra no churn como valor em risco). Editavel: adicione no painel e salve este arquivo, ou edite aqui.",
+  "variaveis": [],
+  "reducoes": []
+}

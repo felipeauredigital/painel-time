@@ -395,10 +395,11 @@ def is_company(t):
         return False
     return bool(_cf_currency(t, CF_FEE) > 0 or _cf_date(t, CF_ENTRADA) or _cf_squad(t))
 
-def build_churn(empresas, variavel=None):
+def build_churn(empresas, variavel=None, reducoes=None, reducoes_list=None):
     """Monta o modelo de churn: fee ativo x em aviso, por squad e por pessoa (Account/Gestor).
-    churn% = fee em aviso / (fee ativo + fee em aviso) — % do faturamento em risco de sair.
-    variavel: snapshot manual da planilha {"mes":..,"bySquad":{squad:{"variavel":R$}}} p/ a base Fee+Variável."""
+    churn% = (fee em aviso + reduções lançadas) / (fee ativo + fee em aviso) — % do faturamento em risco.
+    variavel: {"mes":..,"bySquad":{squad:{"variavel":R$}}} p/ a base Fee+Variável.
+    reducoes: {squad: R$} de reduções/descontos lançados no mês (entram no churn como valor em risco)."""
     clients, people = [], {}
     sq = {}
 
@@ -410,6 +411,7 @@ def build_churn(empresas, variavel=None):
         p = people.setdefault(u["uid"], {"uid": u["uid"], "name": u["name"], "avatar": u.get("avatar"),
                                          "roles": set(), "squads": set(),
                                          "feeAtivo": 0.0, "feeAviso": 0.0, "feeChurn": 0.0,
+                                         "accFee": 0.0, "gesFee": 0.0,  # fee ativo como Account / como Gestor (p/ split 65/35 do bônus)
                                          "nAtivo": 0, "nAviso": 0, "nChurn": 0})
         if role:
             p["roles"].add(role)
@@ -447,6 +449,10 @@ def build_churn(empresas, variavel=None):
             S["feeAtivo"] += fee; S["nAtivo"] += 1
             for u, r in involved:
                 p = person(u, r, squad); p["feeAtivo"] += fee; p["nAtivo"] += 1
+                if r == "Account":
+                    p["accFee"] += fee
+                else:
+                    p["gesFee"] += fee
         elif grp == "aviso":
             S["feeAviso"] += fee; S["nAviso"] += 1
             for u, r in involved:
@@ -478,18 +484,22 @@ def build_churn(empresas, variavel=None):
             continue
         p["roles"] = sorted(p["roles"]); p["squads"] = sorted(p["squads"])
         p["churnPct"] = churn_pct(p["feeAtivo"], p["feeAviso"])
-        for k in ("feeAtivo", "feeAviso", "feeChurn"):
+        for k in ("feeAtivo", "feeAviso", "feeChurn", "accFee", "gesFee"):
             p[k] = round(p[k], 2)
         ppl.append(p)
     ppl.sort(key=lambda x: -(x["feeAtivo"] + x["feeAviso"]))
 
-    # ---- Fee + Variável (comissão do mês; snapshot manual importado da planilha) ----
+    # ---- Fee + Variável (comissão do mês) e Reduções lançadas (desconto/tirou serviço) ----
     vbys = (variavel or {}).get("bySquad", {})
+    red_by = reducoes or {}
     for S in squads:
         v = float((vbys.get(S["squad"]) or {}).get("variavel") or 0.0)
+        r = float(red_by.get(S["squad"]) or 0.0)
         S["variavel"] = round(v, 2)
+        S["reducao"] = round(r, 2)
         S["feeAtivoVar"] = round(S["feeAtivo"] + v, 2)
-        S["churnPctVar"] = churn_pct(S["feeAtivo"] + v, S["feeAviso"])
+        S["churnPct"] = churn_pct(S["feeAtivo"], S["feeAviso"] + r)          # redução entra no numerador
+        S["churnPctVar"] = churn_pct(S["feeAtivo"] + v, S["feeAviso"] + r)
 
     tot_atv = round(sum(S["feeAtivo"] for S in squads), 2)
     tot_avi = round(sum(S["feeAviso"] for S in squads), 2)
@@ -501,11 +511,12 @@ def build_churn(empresas, variavel=None):
         p["feeAtivoVar"] = round(p["feeAtivo"] + pv, 2)
         p["churnPctVar"] = churn_pct(p["feeAtivo"] + pv, p["feeAviso"])
 
-    totals = {"feeAtivo": tot_atv, "feeAviso": tot_avi, "variavel": tot_var,
+    tot_red = round(sum(S.get("reducao", 0.0) for S in squads), 2)
+    totals = {"feeAtivo": tot_atv, "feeAviso": tot_avi, "variavel": tot_var, "reducao": tot_red,
               "feeAtivoVar": round(tot_atv + tot_var, 2),
               "nAtivo": sum(S["nAtivo"] for S in squads), "nAviso": sum(S["nAviso"] for S in squads),
-              "nChurn": sum(S["nChurn"] for S in squads), "churnPct": churn_pct(tot_atv, tot_avi),
-              "churnPctVar": churn_pct(tot_atv + tot_var, tot_avi)}
+              "nChurn": sum(S["nChurn"] for S in squads), "churnPct": churn_pct(tot_atv, tot_avi + tot_red),
+              "churnPctVar": churn_pct(tot_atv + tot_var, tot_avi + tot_red)}
 
     # ---- Projeção: cliente em aviso hoje sai ~30 dias depois (modelo da planilha "Projetos 01/MM").
     # TODO cliente em aviso entra na projeção — mesmo sem data do aviso (vai p/ "sem-data"), para casar
@@ -533,7 +544,8 @@ def build_churn(empresas, variavel=None):
                   key=lambda x: ("9999-99" if x["mes"] == "sem-data" else x["mes"]))]
 
     return {"totals": totals, "squads": squads, "people": ppl, "clients": clients,
-            "squadOrder": SQUAD_ALL, "projection": projection, "variavelMes": (variavel or {}).get("mes")}
+            "squadOrder": SQUAD_ALL, "projection": projection, "variavelMes": (variavel or {}).get("mes"),
+            "reducoes": reducoes_list or []}
 
 def record_fee_snapshot(churn, today):
     hist = _load(FEEHIST, {})
@@ -541,9 +553,25 @@ def record_fee_snapshot(churn, today):
         "feeAtivo": churn["totals"]["feeAtivo"], "feeAviso": churn["totals"]["feeAviso"],
         "churnPct": churn["totals"]["churnPct"],
         "bySquad": {S["squad"]: S["feeAtivo"] for S in churn["squads"]},
+        # carteira ATIVA por squad e por pessoa (acc/ges) — base do bônus (fee do fechamento do mês)
+        "byPerson": {str(p["uid"]): {"acc": p.get("accFee", 0.0), "ges": p.get("gesFee", 0.0), "tot": p["feeAtivo"]}
+                     for p in churn.get("people", [])},
     }
     json.dump(hist, open(FEEHIST, "w", encoding="utf-8"), ensure_ascii=False)
     return hist
+
+def bonus_base(fee_history, today):
+    """Base do bônus = fee ativo da carteira no ÚLTIMO DIA DO MÊS PASSADO (só projetos ativos).
+    Pega o snapshot mais recente que caia no mês anterior; se não houver ainda, sinaliza indisponível."""
+    y, mo = today.year, today.month
+    py, pm = (y - 1, 12) if mo == 1 else (y, mo - 1)
+    prefix = "%04d-%02d" % (py, pm)
+    dias = sorted(d for d in (fee_history or {}) if isinstance(d, str) and d.startswith(prefix))
+    if not dias:
+        return {"mes": prefix, "disponivel": False, "bySquad": {}, "byPerson": {}}
+    snap = fee_history[dias[-1]]
+    return {"mes": prefix, "dia": dias[-1], "disponivel": True,
+            "bySquad": snap.get("bySquad", {}) or {}, "byPerson": snap.get("byPerson", {}) or {}}
 
 def record_churn_history(churn, hist, today):
     """Grava o churn% de cada squad no mês atual (matriz churn_history), acumulando com o tempo.
@@ -658,11 +686,35 @@ def analyze(tasks, record=False):
     # snapshot manual da planilha (histórico churn% por mês + variável do mês). Editáveis à mão.
     churn_history = _load(os.path.join(DATA, "churn_history.json"), {})
     variavel = _load(os.path.join(DATA, "churn_variavel.json"), {})
-    churn = build_churn(empresas, variavel)
+    # lançamentos avulsos (compartilhados no repo): variável e reduções vinculadas a clientes.
+    lanc = _load(os.path.join(DATA, "lancamentos.json"), {"variaveis": [], "reducoes": []})
+    mes_atual = "%04d-%02d" % (today.year, today.month)
+    def _lanc_mes(e):
+        return (e.get("mes") or mes_atual) == mes_atual
+    # variável por squad = snapshot da planilha + lançamentos do mês atual
+    vbys = dict((variavel or {}).get("bySquad", {}))
+    for e in lanc.get("variaveis", []):
+        if not _lanc_mes(e):
+            continue
+        s = e.get("squad") or "—"
+        cur = float((vbys.get(s) or {}).get("variavel") or 0.0)
+        vbys[s] = {"variavel": round(cur + float(e.get("valor") or 0.0), 2)}
+    variavel = dict(variavel or {}, bySquad=vbys, mes=(variavel or {}).get("mes"))
+    # reduções por squad (mês atual) + lista p/ exibição
+    red_by, red_list = {}, []
+    for e in lanc.get("reducoes", []):
+        if not _lanc_mes(e):
+            continue
+        s = e.get("squad") or "—"
+        red_by[s] = round(float(red_by.get(s, 0.0)) + float(e.get("valor") or 0.0), 2)
+        red_list.append({"cliente": e.get("cliente"), "squad": s, "valor": round(float(e.get("valor") or 0.0), 2),
+                         "motivo": e.get("motivo"), "data": e.get("data"), "mes": e.get("mes") or mes_atual})
+    churn = build_churn(empresas, variavel, red_by, red_list)
     if record:
         record_fee_snapshot(churn, today)
         record_churn_history(churn, churn_history, today)   # acumula churn% por squad no mês atual
     fee_history = _load(FEEHIST, {})
+    churn["bonusBase"] = bonus_base(fee_history, today)     # bônus usa o fee do fechamento do mês passado
 
     model = {
         "generated": today.strftime("%d/%m/%Y"),
@@ -677,6 +729,7 @@ def analyze(tasks, record=False):
         "churn": churn,
         "feeHistory": fee_history,
         "churnHistory": churn_history,
+        "lancamentos": {"variaveis": lanc.get("variaveis", []), "reducoes": lanc.get("reducoes", []), "mesAtual": mes_atual},
     }
     json.dump(model, open(os.path.join(HERE, "model.json"), "w", encoding="utf-8"), ensure_ascii=False)
     print(f"\nmodel.json: {len(overdue)} atrasos · {len(today_tasks)} p/ hoje · {len(done)} concluídas · "
