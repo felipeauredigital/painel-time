@@ -536,6 +536,23 @@ def record_fee_snapshot(churn, today):
     json.dump(hist, open(FEEHIST, "w", encoding="utf-8"), ensure_ascii=False)
     return hist
 
+def record_churn_history(churn, hist, today):
+    """Grava o churn% de cada squad no mês atual (matriz churn_history), acumulando com o tempo.
+    Squads novos (ex.: FENIX) passam a ter série própria a partir de agora. Sobrescreve só o mês corrente."""
+    hist.setdefault("squads", [])
+    hist.setdefault("meses", {})
+    key = "%04d-%02d" % (today.year, today.month)
+    month = hist["meses"].setdefault(key, {})
+    order = [s for s in hist["squads"] if s != "TOTAL"]
+    for S in churn["squads"]:
+        month[S["squad"]] = S["churnPct"]
+        if S["squad"] not in order:
+            order.append(S["squad"])
+    month["TOTAL"] = churn["totals"]["churnPct"]
+    hist["squads"] = order + ["TOTAL"]
+    json.dump(hist, open(os.path.join(DATA, "churn_history.json"), "w", encoding="utf-8"), ensure_ascii=False)
+    return hist
+
 # ------------------------------------------------------------------ analyze
 def analyze(tasks, record=False):
     today = datetime.datetime.now(TZ).date()
@@ -632,6 +649,7 @@ def analyze(tasks, record=False):
     churn = build_churn(empresas, variavel)
     if record:
         record_fee_snapshot(churn, today)
+        record_churn_history(churn, churn_history, today)   # acumula churn% por squad no mês atual
     fee_history = _load(FEEHIST, {})
 
     model = {

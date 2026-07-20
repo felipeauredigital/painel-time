@@ -968,14 +968,13 @@ function renderChurnHistory(C,m,scope){
     <div class="banner"><div class="bt"><h2>Histórico de churn${scope!=="all"?' — '+esc(tit):''}</h2>
       <p>Churn % por mês — importado da planilha base. Verde ≤ super (${m.sup}%) · amarelo ≤ meta (${m.meta}%) · vermelho acima.</p>
       <div class="cta" style="gap:6px">${yrBtn('all','Todos')}${anos.map(y=>yrBtn(y,y)).join('')}</div></div><div class="avatar">📚</div></div>
-    ${scopedMissing?`<div class="note">Este squad não consta no histórico importado da planilha (só ADFORCE, G.O.A.T, BULLS e E-SCALE têm série histórica). Mostrando o TOTAL da agência como referência.</div>`:''}
-    ${!hasData?'<div class="note">Sem histórico importado ainda.</div>':`
+    ${scopedMissing?`<div class="card"><div class="pad"><div class="note">📅 <b>${esc(tit)}</b> ainda não tem série histórica (a planilha base importada tinha só ADFORCE, G.O.A.T, BULLS e E-SCALE). A partir de agora o painel grava o churn deste squad a cada fechamento mensal — o histórico dele começa a acumular do mês atual em diante.</div></div></div>`:(!hasData?'<div class="note">Sem histórico importado ainda.</div>':`
     <div class="card"><div class="card-h"><h3>Evolução — ${esc(chartSquad==="TOTAL"?"agência (TOTAL)":tit)}</h3><div class="r">${monthLbl(meses[0])} → ${monthLbl(meses[meses.length-1])}</div></div>
       <div class="pad"><div class="chart" style="min-height:150px">${totVals.map(([k,v])=>`<div class="colwrap"><div class="coln">${v.toFixed(1).replace('.',',')}</div><div class="bar-col" style="height:${Math.max(4,v/maxV*130)}px;background:transparent"><div class="seg" style="flex:1;background:${zc(v)}"></div></div><div class="collbl">${monthLbl(k)}</div></div>`).join('')}</div>
         <div class="note">Cada barra é o churn no mês. Cor pela zona de meta (super ${m.sup}% / meta ${m.meta}%).</div></div></div>
     <div class="card"><div class="card-h"><h3>Matriz churn % — squad × mês</h3><div class="r">meta batidas na última coluna</div></div>
       <div class="tblwrap"><table class="hmatrix"><thead><tr><th>Squad</th>${meses.map(k=>`<th>${monthLbl(k)}</th>`).join('')}<th>Batidas</th></tr></thead>
-      <tbody>${squads.map(s=>`<tr><td>${esc(s)}</td>${meses.map(k=>`<td>${cell(H.meses[k]?H.meses[k][s]:null)}</td>`).join('')}<td><b>${batidas(s)}</b></td></tr>`).join('')}</tbody></table></div></div>`}
+      <tbody>${squads.map(s=>`<tr><td>${esc(s)}</td>${meses.map(k=>`<td>${cell(H.meses[k]?H.meses[k][s]:null)}</td>`).join('')}<td><b>${batidas(s)}</b></td></tr>`).join('')}</tbody></table></div></div>`)}
   </div>`;
 }
 
