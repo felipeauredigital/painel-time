@@ -810,7 +810,7 @@ function renderChurnSquad(name,C,m,hiddenSq){
   $("topright").innerHTML=`<div class="stepbtns"><button class="btn" data-churn-back>← Voltar</button><button class="btn" data-churn-step="-1">↑ Squad ant.</button><button class="btn" data-churn-step="1">Próx. squad ↓</button></div>`;
   const vr=s.feeAtivo>0?(s.variavel||0)/s.feeAtivo:0;   // variável do último mês, rateada por fee
   const cRow=(c,dk)=>`<tr><td><a class="cname" href="https://app.clickup.com/t/${c.id}" target="_blank" rel="noopener">${esc(c.name)}</a></td><td>${esc(c.account||"—")}</td><td>${esc(c.gestor||"—")}</td><td class="r fee"${c.grp==="aviso"?' style="color:var(--crit)"':''}>${BRL(c.fee)}</td><td class="r fee" style="color:var(--gold-2)">${BRL(c.fee*vr)}</td><td class="r fee">${BRL(c.fee*(1+vr))}</td>${dk?`<td class="r">${c[dk]?fmtBR(c[dk]):"—"}</td>`:''}</tr>`;
-  $("root").innerHTML=`<div class="content"><div class="col">
+  $("root").innerHTML=`${churnNav('overview',false)}<div class="content"><div class="col">
     <div class="banner"><div class="bt"><h2>${esc(name)}</h2>
       <p>${BRL(s.feeAtivo)} de fee ativo · ${BRL(s.feeAviso)} em aviso (${s.nAviso} cliente(s)) — churn de <b>${s.churnPct}%</b>. Meta ≤ ${m.meta}% · super ≤ ${m.sup}%.</p>
       <div class="cta"><button class="ghost" data-churn-back>← Todos os squads</button></div>
@@ -869,7 +869,7 @@ function renderChurnPerson(uid,C,m,hiddenSq){
   $("ptitle").textContent="Churn · "+name;
   $("topright").innerHTML=`<div class="stepbtns"><button class="btn" data-churn-back>← Voltar</button><button class="btn" data-churn-step="-1">↑ Anterior</button><button class="btn" data-churn-step="1">Próximo ↓</button></div>`;
   const pRow=(c,dk)=>{const r=rOf(c);return `<tr><td><a class="cname" href="https://app.clickup.com/t/${c.id}" target="_blank" rel="noopener">${esc(c.name)}</a></td><td><span class="sqtag">${esc(c.squad)}</span></td><td>${roleOf(c)}</td><td class="r fee"${c.grp==="aviso"?' style="color:var(--crit)"':''}>${BRL(c.fee)}</td><td class="r fee" style="color:var(--gold-2)">${BRL(c.fee*r)}</td><td class="r fee">${BRL(c.fee*(1+r))}</td>${dk?`<td class="r">${c[dk]?fmtBR(c[dk]):"—"}</td>`:''}</tr>`;};
-  $("root").innerHTML=`<div class="content"><div class="col">
+  $("root").innerHTML=`${churnNav('overview',false)}<div class="content"><div class="col">
     <div class="banner"><div class="bt"><h2>${esc(name)}</h2>
       <p>Carteira de ${BRL(feeAtv+feeAvi)} · ${BRL(feeAvi)} em aviso — churn de <b>${pct}%</b>. ${squadsList.map(x=>`<span class="teamchip">${esc(x)}</span>`).join(" ")}</p>
       <div class="cta"><button class="ghost" data-churn-back>← Todas as pessoas</button></div>
@@ -921,12 +921,12 @@ function churnStep(d){
 /* ---------------- CHURN · sub-navegação + Histórico / Projeção / Bonificação ---------------- */
 const MLBL=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
 const monthLbl=k=>{const a=k.split('-');return MLBL[+a[1]-1]+'/'+a[0].slice(2);};
-function churnNav(active){
+function churnNav(active,showBase){
   const T=(k,l)=>`<button class="cbtn" data-churn-open="${k}" aria-pressed="${active===k}">${l}</button>`;
-  return `<div class="cnav">${T('overview','Visão geral')}${T('history','Histórico')}${T('projection','Projeção')}${T('bonus','Bonificação')}${T('insights','Insights')}
-    <span style="flex:1"></span><span class="cbase">Base:</span>
+  const base=(showBase===false)?'':`<span style="flex:1"></span><span class="cbase">Base:</span>
     <button class="cbtn" data-churn-base="fee" aria-pressed="${churnBase==='fee'}">Fee</button>
-    <button class="cbtn" data-churn-base="var" aria-pressed="${churnBase==='var'}">Fee + Variável</button></div>`;
+    <button class="cbtn" data-churn-base="var" aria-pressed="${churnBase==='var'}">Fee + Variável</button>`;
+  return `<div class="cnav">${T('overview','Visão geral')}${T('history','Histórico')}${T('projection','Projeção')}${T('bonus','Bonificação')}${T('insights','Insights')}${base}</div>`;
 }
 
 function renderChurnHistory(C,m){
