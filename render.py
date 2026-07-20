@@ -232,19 +232,76 @@ h1,h2,.brand b,.card-h h3,.acard h3,.stat .n,.donut .c b,.banner h2{font-family:
 .btn{font-family:inherit;font-size:12px;font-weight:700;color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:7px 11px;cursor:pointer}
 .btn:hover{color:var(--ink);border-color:var(--line-2)}
 .teamchip{font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:3px 8px;border-radius:999px;background:rgba(255,255,255,.22);color:#fff}
+
+/* churn */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:12px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-sm);padding:15px 16px;box-shadow:var(--shadow-sm)}
+.kpi .n{font-family:var(--display);font-size:25px;font-weight:800;line-height:1}
+.kpi .l{font-size:11.5px;color:var(--muted);font-weight:600;margin-top:6px}
+.kpi .s{font-size:11px;color:var(--muted);margin-top:3px}
+.metabar{position:relative;height:13px;border-radius:7px;background:var(--panel-2);margin:9px 0}
+.metabar.big{height:20px;border-radius:10px}
+.metabar .mfill{position:absolute;left:0;top:0;height:100%;border-radius:7px;transition:width .3s}
+.metabar .mtick{position:absolute;top:-3px;width:2px;height:19px;border-radius:2px}
+.metabar.big .mtick{top:-4px;height:28px}
+.metabar .mtick.sup{background:var(--good)}.metabar .mtick.meta{background:var(--high)}
+.metabar .mlbl{position:absolute;top:22px;font-size:9.5px;font-weight:700;color:var(--muted);transform:translateX(-50%);white-space:nowrap}
+.metabar.big .mlbl{top:30px}
+.zbadge{font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;white-space:nowrap;display:inline-block}
+.zbadge.super{background:color-mix(in srgb,var(--good) 18%,transparent);color:var(--good)}
+.zbadge.meta{background:color-mix(in srgb,var(--med) 24%,transparent);color:var(--high)}
+.zbadge.acima{background:color-mix(in srgb,var(--crit) 16%,transparent);color:var(--crit)}
+.sqrow{display:grid;grid-template-columns:130px 1fr 82px;gap:16px;align-items:center;padding:15px 0;border-top:1px solid var(--line)}
+.sqrow:first-child{border-top:0}
+.sqrow .sqn{font-weight:800;font-size:14px}
+.sqrow .sqmeta{font-size:11px;color:var(--muted);margin-top:3px}
+.sqrow .sqpct{font-family:var(--display);font-size:22px;font-weight:800;text-align:right;line-height:1}
+.sqrow .sqpct span{font-size:11px;font-weight:700}
+@media(max-width:640px){.sqrow{grid-template-columns:1fr auto;gap:6px 12px}.sqrow .barcell{grid-column:1/3;order:3}}
+.ctable{width:100%;border-collapse:collapse;font-size:12.5px}
+.ctable th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:700;padding:9px 10px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel);z-index:1}
+.ctable th.r,.ctable td.r{text-align:right}
+.ctable td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+.ctable tr:last-child td{border-bottom:0}
+.ctable tbody tr:hover td{background:var(--panel-2)}
+.ctable .fee{font-weight:800;white-space:nowrap;font-variant-numeric:tabular-nums}
+.ctable .cname{font-weight:700;color:var(--ink);text-decoration:none}
+.ctable .cname:hover{color:var(--gold-2);text-decoration:underline}
+.tblwrap{max-height:560px;overflow:auto;border-radius:0 0 var(--r) var(--r)}
+.sqtag{font-size:10px;font-weight:800;padding:2px 7px;border-radius:6px;background:var(--panel-2);border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.metaedit{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end}
+.metaedit label{font-size:12px;font-weight:600;color:var(--muted);display:flex;flex-direction:column;gap:6px}
+.metaedit input{font-family:inherit;font-size:16px;font-weight:800;color:var(--ink);background:var(--panel-2);border:1px solid var(--line);border-radius:9px;padding:9px 12px;width:96px}
+.sqtoggle{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-top:1px solid var(--line)}
+.sqtoggle:first-child{border-top:0}
+.switch{font-family:inherit;font-size:11.5px;font-weight:700;border:1px solid var(--line);background:var(--panel-2);color:var(--muted);border-radius:8px;padding:7px 12px;cursor:pointer}
+.switch[aria-pressed="true"]{background:var(--gold-soft);color:var(--gold-2);border-color:transparent}
+:root[data-theme="dark"] .switch[aria-pressed="true"]{color:var(--gold)}
+.note{background:var(--panel-2);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:10px;padding:12px 15px;font-size:12.5px;color:var(--muted);line-height:1.55}
+.note b{color:var(--ink)}
+.fbars{display:flex;align-items:flex-end;gap:5px;height:90px;overflow-x:auto;padding-top:8px}
+.fbars .fb{flex:1;min-width:14px;background:linear-gradient(180deg,var(--gold),var(--gold-2));border-radius:4px 4px 0 0;min-height:3px;position:relative}
+.fbars .fb .ft{position:absolute;top:-16px;left:50%;transform:translateX(-50%);font-size:9px;color:var(--muted);white-space:nowrap}
+.peoplemini{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+.pmchip{display:flex;align-items:center;gap:7px;background:var(--panel-2);border:1px solid var(--line);border-radius:999px;padding:4px 11px 4px 4px;font-size:11.5px;font-weight:600}
 </style>
 
 <div class="wrap"><div class="app">
   <aside class="side">
     <div class="brand"><span class="logo"><span class="top"><span class="au">Au</span><span class="re">re</span><span class="dot"></span></span><span class="dig">DIGITAL</span></span><span class="tag">· Times</span></div>
-    <div class="navlbl">Painel</div>
+    <div class="navlbl">Tarefas</div>
     <button class="nav" data-page="overview" aria-current="true"><span class="ic">▚</span> Visão geral</button>
     <button class="nav" data-page="person"><span class="ic">◉</span> Por pessoa</button>
-    <div class="navlbl">Time</div>
-    <div class="tfilter" id="tfilter">
-      <button data-team="all" aria-pressed="true">Ambos</button>
-      <button data-team="E-SCALE" aria-pressed="false">E‑SCALE</button>
-      <button data-team="FENIX" aria-pressed="false">FENIX</button>
+    <div class="navlbl">Churn</div>
+    <button class="nav" data-page="churn"><span class="ic">📉</span> Controle de churn</button>
+    <button class="nav" data-page="times"><span class="ic">⚙</span> Times &amp; metas</button>
+    <div id="teamfilterwrap">
+      <div class="navlbl">Time</div>
+      <div class="tfilter" id="tfilter">
+        <button data-team="all" aria-pressed="true">Ambos</button>
+        <button data-team="E-SCALE" aria-pressed="false">E‑SCALE</button>
+        <button data-team="FENIX" aria-pressed="false">FENIX</button>
+      </div>
     </div>
     <div class="side-foot">
       <div class="gen" id="gen"></div>
@@ -257,7 +314,7 @@ h1,h2,.brand b,.card-h h3,.acard h3,.stat .n,.donut .c b,.banner h2{font-family:
 
   <main class="main">
     <div class="topbar"><h1 id="ptitle">Visão geral</h1><div id="topright"></div></div>
-    <div class="period" title="Filtra conclusões, % no prazo e adiamentos. O atraso e as mal cadastradas são sempre o estado atual.">
+    <div class="period" id="periodbar" title="Filtra conclusões/adiamentos (Tarefas) e saídas/histórico de fee (Churn). O churn atual é sempre o estado do momento.">
       <span class="plabel">Período</span>
       <div class="ppills" id="periodpresets">
         <button data-preset="hoje">Hoje</button>
@@ -277,6 +334,7 @@ h1,h2,.brand b,.card-h h3,.acard h3,.stat .n,.donut .c b,.banner h2{font-family:
   </main>
 </div></div>
 <div class="toast" id="toast" hidden><span id="toastmsg"></span><button id="toastundo">Desfazer</button></div>
+<input type="file" id="cfgfile" accept="application/json" hidden>
 
 <script>
 const MODEL = __MODEL__;
@@ -580,6 +638,134 @@ function renderPerson(){
     <div class="plist">${rail}</div></div></div></div>`;
 }
 
+/* ---------------- CHURN ---------------- */
+const BRL=n=>'R$ '+Math.round(n||0).toLocaleString('pt-BR');
+const MKEY="clk_metas_v1";
+function metas(){try{return Object.assign({meta:5,sup:3,hidden:[]},JSON.parse(localStorage.getItem(MKEY)||"{}"))}catch(e){return{meta:5,sup:3,hidden:[]}}}
+function setMetas(m){localStorage.setItem(MKEY,JSON.stringify(m))}
+function zoneOf(pct,m){return pct<=m.sup?"super":pct<=m.meta?"meta":"acima"}
+const ZONEC={super:"var(--good)",meta:"var(--high)",acima:"var(--crit)"};
+const ZONEL={super:"🟢 Super meta",meta:"🟡 Meta",acima:"🔴 Acima da meta"};
+function attainBar(pct,m,big){
+  const max=Math.max(m.meta*1.9,pct*1.12,8), z=zoneOf(pct,m), at=x=>Math.min(100,x/max*100);
+  return `<div class="metabar${big?' big':''}">
+    <div class="mfill" style="width:${at(pct)}%;background:${ZONEC[z]}"></div>
+    <span class="mtick sup" style="left:${at(m.sup)}%"></span>${big?`<span class="mlbl" style="left:${at(m.sup)}%">super ${m.sup}%</span>`:''}
+    <span class="mtick meta" style="left:${at(m.meta)}%"></span>${big?`<span class="mlbl" style="left:${at(m.meta)}%">meta ${m.meta}%</span>`:''}</div>`;
+}
+function avaChurn(p){const ini=esc(initials(p.name||"—"));
+  const st="width:30px;height:30px;border-radius:9px;font-size:11px;background:linear-gradient(135deg,var(--gold),var(--gold-2));flex:none";
+  if(p.avatar)return `<span class="ava" style="position:relative;overflow:hidden;${st}">${ini}<img src="${esc(p.avatar)}" alt="" loading="lazy" referrerpolicy="no-referrer" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover" onerror="this.remove()"></span>`;
+  return `<span class="ava" style="${st}">${ini}</span>`;}
+function exportCfg(){
+  const cfg={metas:metas(),hiddenTasks:[...hidden()],exportedAt:new Date().toISOString()};
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(cfg,null,2)],{type:"application/json"}));
+  a.download="painel-config.json";document.body.appendChild(a);a.click();a.remove();
+}
+function importCfg(file){const r=new FileReader();r.onload=()=>{try{const c=JSON.parse(r.result);
+  if(c.metas)setMetas(c.metas); if(Array.isArray(c.hiddenTasks))setHidden(new Set(c.hiddenTasks));
+  showToast("Config importada.");render();}catch(e){alert("Arquivo de config inválido.");}};r.readAsText(file);}
+
+function renderChurn(){
+  $("ptitle").textContent="Controle de churn";
+  $("topright").innerHTML=`<div class="stepbtns"><button class="btn" data-export-cfg>⭳ Exportar</button><button class="btn" data-import-cfg>⭱ Importar</button></div>`;
+  const C=MODEL.churn||{squads:[],people:[],clients:[],totals:{}}, m=metas(), hiddenSq=new Set(m.hidden||[]);
+  const squads=(C.squads||[]).filter(s=>s.squad!=="—"&&!hiddenSq.has(s.squad));
+  const tAtv=squads.reduce((s,x)=>s+x.feeAtivo,0), tAvi=squads.reduce((s,x)=>s+x.feeAviso,0);
+  const tPct=(tAtv+tAvi)?+(tAvi/(tAtv+tAvi)*100).toFixed(2):0, z=zoneOf(tPct,m);
+  const nAtivo=squads.reduce((s,x)=>s+x.nAtivo,0), nAviso=squads.reduce((s,x)=>s+x.nAviso,0);
+  const avisoClients=(C.clients||[]).filter(c=>c.grp==="aviso"&&!hiddenSq.has(c.squad)).sort((a,b)=>b.fee-a.fee);
+  const saidas=(C.clients||[]).filter(c=>c.grp==="churn"&&c.churnDate&&inRng(c.churnDate)&&!hiddenSq.has(c.squad)).sort((a,b)=>a.churnDate<b.churnDate?1:-1);
+  const perdidoP=saidas.reduce((s,c)=>s+c.fee,0);
+  const people=(C.people||[]).filter(p=>(p.nAtivo+p.nAviso)>0&&(p.squads||[]).some(s=>!hiddenSq.has(s))).sort((a,b)=>b.churnPct-a.churnPct||b.feeAviso-a.feeAviso);
+  const fh=Object.entries(MODEL.feeHistory||{}).filter(([d])=>inRng(d)).sort((a,b)=>a[0]<b[0]?-1:1);
+  const fhMax=Math.max(1,...fh.map(([,v])=>v.feeAtivo||0));
+  const squadRow=s=>{const zz=zoneOf(s.churnPct,m);return `<div class="sqrow">
+    <div><div class="sqn">${esc(s.squad)}</div><div class="sqmeta">${s.nAtivo} ativos · ${s.nAviso} em aviso</div></div>
+    <div class="barcell">${attainBar(s.churnPct,m)}<div style="display:flex;justify-content:space-between;gap:8px;margin-top:5px;font-size:11px;color:var(--muted)">
+      <span>${BRL(s.feeAtivo)} ativo</span><span class="zbadge ${zz}">${ZONEL[zz]}</span><span style="color:var(--crit)">${BRL(s.feeAviso)} aviso</span></div></div>
+    <div class="sqpct" style="color:${ZONEC[zz]}">${s.churnPct}<span>%</span></div></div>`;};
+
+  $("root").innerHTML=`<div class="col">
+    <div class="banner"><div class="bt">
+      <h2>Controle de churn — agência</h2>
+      <p>${BRL(tAtv)} de fee ativo sob gestão · ${BRL(tAvi)} em aviso (${nAviso} cliente(s)) — churn de <b>${tPct}%</b> do faturamento. Meta ≤ ${m.meta}% · super meta ≤ ${m.sup}%.</p>
+    </div><div class="avatar">📉</div></div>
+
+    <div class="kpis">
+      <div class="kpi"><div class="n">${BRL(tAtv)}</div><div class="l">Fee ativo</div><div class="s">${nAtivo} clientes</div></div>
+      <div class="kpi"><div class="n" style="color:var(--crit)">${BRL(tAvi)}</div><div class="l">Fee em aviso</div><div class="s">${nAviso} clientes</div></div>
+      <div class="kpi"><div class="n" style="color:${ZONEC[z]}">${tPct}%</div><div class="l">Churn (faturamento)</div><div class="s"><span class="zbadge ${z}">${ZONEL[z]}</span></div></div>
+      <div class="kpi"><div class="n">${BRL(perdidoP)}</div><div class="l">Saídas no período</div><div class="s">${saidas.length} cliente(s)</div></div>
+    </div>
+
+    <div class="card"><div class="card-h"><h3>Atingimento de meta — agência</h3><div class="r">churn ${tPct}% · meta ≤ ${m.meta}% · super ≤ ${m.sup}%</div></div>
+      <div class="pad"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px">
+        <b style="font-family:var(--display);font-size:30px;color:${ZONEC[z]}">${tPct}%</b><span class="zbadge ${z}">${ZONEL[z]}</span></div>
+        ${attainBar(tPct,m,true)}<div style="height:26px"></div>
+        <div class="note">A barra mostra o churn atual contra a <b>super meta (${m.sup}%)</b> e a <b>meta (${m.meta}%)</b>. Quanto <b>menor</b>, melhor. Edite as metas em <b>Times &amp; metas</b>.</div>
+      </div></div>
+
+    <div class="card"><div class="card-h"><h3>Por squad</h3><div class="r">${squads.length} squads</div></div>
+      <div class="pad">${squads.map(squadRow).join("")||'<div class="empty">Sem squads para mostrar.</div>'}</div></div>
+
+    <div class="card"><div class="card-h"><h3>Por pessoa</h3><div class="r">carteira (Account + Gestor)</div></div>
+      <div class="tblwrap"><table class="ctable"><thead><tr><th>Pessoa</th><th>Squad</th><th class="r">Fee ativo</th><th class="r">Em aviso</th><th class="r">Churn</th><th style="width:120px">Meta</th></tr></thead>
+      <tbody>${people.map(p=>{const zz=zoneOf(p.churnPct,m);return `<tr>
+        <td><div style="display:flex;align-items:center;gap:9px">${avaChurn(p)}<span><b>${esc(p.name||"—")}</b><br><span style="font-size:10.5px;color:var(--muted)">${(p.roles||[]).map(r=>r==="Gestor de Tráfego"?"Gestor":r).join(" · ")}</span></span></div></td>
+        <td>${(p.squads||[]).map(s=>`<span class="sqtag">${esc(s)}</span>`).join(" ")||"—"}</td>
+        <td class="r fee">${BRL(p.feeAtivo)}</td><td class="r fee" style="color:${p.feeAviso?'var(--crit)':'var(--muted)'}">${p.feeAviso?BRL(p.feeAviso):"—"}</td>
+        <td class="r"><b style="color:${ZONEC[zz]}">${p.churnPct}%</b></td><td>${attainBar(p.churnPct,m)}</td></tr>`;}).join("")||'<tr><td colspan="6" class="empty">Sem pessoas.</td></tr>'}</tbody></table></div></div>
+
+    <div class="card"><div class="card-h"><h3>Clientes em aviso (risco de churn)</h3><div class="r">${avisoClients.length} · ${BRL(tAvi)}</div></div>
+      ${avisoClients.length?`<div class="tblwrap"><table class="ctable"><thead><tr><th>Cliente</th><th>Squad</th><th>Account</th><th>Gestor</th><th class="r">Fee</th><th class="r">Aviso</th></tr></thead>
+      <tbody>${avisoClients.map(c=>`<tr><td><a class="cname" href="https://app.clickup.com/t/${c.id}" target="_blank" rel="noopener">${esc(c.name)}</a></td>
+        <td><span class="sqtag">${esc(c.squad)}</span></td><td>${esc(c.account||"—")}</td><td>${esc(c.gestor||"—")}</td>
+        <td class="r fee" style="color:var(--crit)">${BRL(c.fee)}</td><td class="r">${c.aviso?fmtBR(c.aviso):"—"}</td></tr>`).join("")}</tbody></table></div>`
+      :'<div class="empty">Nenhum cliente em aviso 🎉</div>'}</div>
+
+    <div class="card"><div class="card-h"><h3>Saídas no período</h3><div class="r">${fmtBR(dFrom)} → ${fmtBR(dTo)} · ${saidas.length} · ${BRL(perdidoP)}</div></div>
+      ${saidas.length?`<div class="tblwrap"><table class="ctable"><thead><tr><th>Cliente</th><th>Squad</th><th>Account</th><th class="r">Fee</th><th class="r">Saída</th></tr></thead>
+      <tbody>${saidas.map(c=>`<tr><td><a class="cname" href="https://app.clickup.com/t/${c.id}" target="_blank" rel="noopener">${esc(c.name)}</a></td>
+        <td><span class="sqtag">${esc(c.squad)}</span></td><td>${esc(c.account||"—")}</td>
+        <td class="r fee">${BRL(c.fee)}</td><td class="r">${c.churnDate?fmtBR(c.churnDate):"—"}</td></tr>`).join("")}</tbody></table></div>`
+      :'<div class="empty">Nenhuma saída nesse período. Ajuste o período no topo (ex.: "Este mês" ou "Tudo").</div>'}</div>
+
+    <div class="card"><div class="card-h"><h3>Fee ativo ao longo do tempo</h3><div class="r">${fmtBR(dFrom)} → ${fmtBR(dTo)}</div></div>
+      <div class="pad">${fh.length>1?`<div class="fbars">${fh.map(([d,v])=>`<div class="fb" style="height:${Math.max(3,(v.feeAtivo||0)/fhMax*82)}px" title="${fmtBR(d)}: ${BRL(v.feeAtivo||0)}"></div>`).join("")}</div>
+        <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:11px;color:var(--muted)"><span>${fmtBR(fh[0][0])}</span><span>${fmtBR(fh[fh.length-1][0])}</span></div>`
+      :`<div class="note">📅 O histórico de fee é gravado <b>1×/dia às 23h59</b> e começa a partir de hoje. Em alguns dias esta curva mostra a evolução do faturamento conforme clientes entram e saem.</div>`}</div></div>
+  </div>`;
+}
+
+/* ---------------- TIMES & METAS ---------------- */
+function renderTimes(){
+  $("ptitle").textContent="Times & metas";
+  $("topright").innerHTML=`<div class="stepbtns"><button class="btn" data-export-cfg>⭳ Exportar</button><button class="btn" data-import-cfg>⭱ Importar</button></div>`;
+  const C=MODEL.churn||{squads:[],people:[]}, m=metas(), hiddenSq=new Set(m.hidden||[]);
+  const allSquads=(C.squads||[]).filter(s=>s.squad!=="—");
+  const bySquad={};(C.people||[]).forEach(p=>(p.squads||[]).forEach(s=>{(bySquad[s]=bySquad[s]||[]).push(p);}));
+  $("root").innerHTML=`<div class="col">
+    <div class="note">⚙️ <b>Como funciona:</b> squads e pessoas vêm automaticamente do ClickUp (campo <b>Squad</b> + <b>Account</b>/<b>Gestor de Tráfego</b> na lista de Empresas). Ao cadastrar um cliente ou trocar alguém de squad no ClickUp, o painel se atualiza sozinho na próxima rodada — não precisa recadastrar aqui. Você edita as <b>metas</b> e escolhe quais squads acompanhar. <b>(Etapa que vamos refinar juntos.)</b></div>
+
+    <div class="card"><div class="card-h"><h3>Metas de churn</h3><div class="r">valem para todos os squads e pessoas</div></div>
+      <div class="pad"><div class="metaedit">
+        <label>Meta — churn até (%)<input type="number" id="metaInput" value="${m.meta}" min="0" max="100" step="0.5"></label>
+        <label>Super meta — churn até (%)<input type="number" id="supInput" value="${m.sup}" min="0" max="100" step="0.5"></label>
+        <button class="applybtn" data-save-metas>Salvar metas</button>
+      </div><div class="note" style="margin-top:14px">Até <b>${m.sup}%</b> = super meta 🟢 · até <b>${m.meta}%</b> = meta 🟡 · acima de <b>${m.meta}%</b> = fora da meta 🔴. Salvo neste navegador — use <b>Exportar</b> para compartilhar/backup.</div></div></div>
+
+    <div class="card"><div class="card-h"><h3>Squads acompanhados</h3><div class="r">${allSquads.length-hiddenSq.size}/${allSquads.length} ativos</div></div>
+      <div class="pad">${allSquads.map(s=>{const on=!hiddenSq.has(s.squad);return `<div class="sqtoggle">
+        <div><b>${esc(s.squad)}</b><div style="font-size:11.5px;color:var(--muted)">${s.nAtivo} ativos · ${BRL(s.feeAtivo)} · churn ${s.churnPct}%</div></div>
+        <button class="switch" data-toggle-squad="${esc(s.squad)}" aria-pressed="${on}">${on?"Acompanhando":"Oculto"}</button></div>`;}).join("")||'<div class="empty">—</div>'}</div></div>
+
+    <div class="card"><div class="card-h"><h3>Pessoas por squad</h3><div class="r">automático do ClickUp</div></div>
+      <div class="pad">${allSquads.filter(s=>!hiddenSq.has(s.squad)).map(s=>`<div style="padding:13px 0;border-top:1px solid var(--line)">
+        <b>${esc(s.squad)}</b><div class="peoplemini">${(bySquad[s.squad]||[]).sort((a,b)=>b.feeAtivo-a.feeAtivo).map(p=>`<span class="pmchip">${avaChurn(p)}${esc(p.name||"—")}</span>`).join("")||'<span style="font-size:12px;color:var(--muted)">sem pessoas vinculadas</span>'}</div></div>`).join("")}</div></div>
+  </div>`;
+}
+
 function render(){
   $("gen").textContent=`Atualizado ${MODEL.generated}`;
   $("foot").innerHTML=`Histórico ${MODEL.window.from} → ${MODEL.window.to}. "✓ Fechar" oculta tarefas já concluídas/cliente que saiu (salvo neste navegador, com desfazer). As datas em "Comportamento" filtram o histórico.`;
@@ -591,7 +777,12 @@ function render(){
   $("df").min=$("dt").min=MODEL.window.from; $("df").max=$("dt").max=MODEL.window.to;
   const apnow=activePreset();
   [...$("periodpresets").children].forEach(x=>x.setAttribute("aria-pressed",x.dataset.preset===apnow));
-  if(page==="overview")renderOverview(); else renderPerson();
+  $("teamfilterwrap").style.display=(page==="overview"||page==="person")?"":"none";
+  $("periodbar").style.display=(page==="times")?"none":"";
+  if(page==="overview")renderOverview();
+  else if(page==="person")renderPerson();
+  else if(page==="churn")renderChurn();
+  else renderTimes();
 }
 // events
 document.addEventListener("click",e=>{
@@ -609,8 +800,16 @@ document.addEventListener("click",e=>{
   const tt=e.target.closest("#themetog button"); if(tt){document.documentElement.setAttribute("data-theme",tt.dataset.t);render();return;}
   const pr=e.target.closest("[data-preset]"); if(pr){setPreset(pr.dataset.preset);render();return;}
   const ap=e.target.closest("[data-apply]"); if(ap){const f=$("df").value,t=$("dt").value;if(f)dFrom=f;if(t)dTo=t;if(dFrom>dTo){const x=dFrom;dFrom=dTo;dTo=x;}render();return;}
+  const ec=e.target.closest("[data-export-cfg]"); if(ec){exportCfg();return;}
+  const ic=e.target.closest("[data-import-cfg]"); if(ic){$("cfgfile").click();return;}
+  const sm=e.target.closest("[data-save-metas]"); if(sm){const mm=metas();mm.meta=parseFloat($("metaInput").value);mm.sup=parseFloat($("supInput").value);if(!(mm.meta>=0))mm.meta=5;if(!(mm.sup>=0))mm.sup=3;setMetas(mm);showToast("Metas salvas.");render();return;}
+  const ts=e.target.closest("[data-toggle-squad]"); if(ts){const mm=metas();mm.hidden=mm.hidden||[];const s=ts.dataset.toggleSquad,i=mm.hidden.indexOf(s);if(i>=0)mm.hidden.splice(i,1);else mm.hidden.push(s);setMetas(mm);render();return;}
 });
-document.addEventListener("change",e=>{if(e.target.id==="df"){dFrom=e.target.value;render();}if(e.target.id==="dt"){dTo=e.target.value;render();}});
+document.addEventListener("change",e=>{
+  if(e.target.id==="df"){dFrom=e.target.value;render();}
+  if(e.target.id==="dt"){dTo=e.target.value;render();}
+  if(e.target.id==="cfgfile"&&e.target.files[0]){importCfg(e.target.files[0]);e.target.value="";}
+});
 function showToast(msg){$("toastmsg").textContent=msg;$("toast").hidden=false;clearTimeout(window._tt);window._tt=setTimeout(()=>$("toast").hidden=true,6000);}
 $("toastundo").addEventListener("click",()=>{if(window._last){unhide(window._last);window._last=null;$("toast").hidden=true;render();}});
 render();

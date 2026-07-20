@@ -56,22 +56,21 @@ MEMBER_ORDER = list(MEMBERS.keys())
 # ---- Listas ----
 EXCLUDE_LISTS = {"Campanhas de Tráfego"}          # legada, o time não usa mais
 NAO_ACAO_LISTS = {"Otimização de Campanhas"}      # anúncios rodando/pausados: não é "pendência de ação"
-# Listas varridas para detectar tarefas mal cadastradas (id -> nome).
-SCAN_LISTS = {
-    "900702240138": "Gestão de Projetos",
-    "901109318541": "Processos de Artes",
-    "901112732707": "Planejamento e Gestão de CRM",
-    "901111244864": "Envio de NPS",
-    "901113455695": "Otimização de Campanhas",
-    "901109113085": "Kickoff",
-    "901109113867": "Entrada do cliente",
-    "901109112970": "Agenda de clientes",
-    "901113655081": "Coleta de indicações",
-    "901113446899": "Onboarding com o Head",
-}
+
+# As listas a varrer são DESCOBERTAS automaticamente nestes espaços (assim novas listas
+# entram sozinhas). Hoje: Operacional (onde vive o trabalho diário dos times).
+SCAN_SPACES = ["90113535859"]                     # Operacional
+EXTRA_LISTS = {"901109318541": "Processos de Artes"}   # lista relevante fora da Operacional
+# Não baixar (legada / registros automáticos, não são tarefas):
+FETCH_EXCLUDE = {"Campanhas de Tráfego", "NPS Respostas recebidas"}
 # "Sem prazo" só é erro em listas de entregável datado (evita marcar card de cliente /
 # reunião recorrente / template de kickoff, que normalmente não têm prazo).
 DUE_EXPECTED_LISTS = {"Processos de Artes", "Planejamento e Gestão de CRM", "Otimização de Campanhas"}
+# "Mal cadastradas" só faz sentido nas listas de trabalho de cliente (evita floodar com
+# briefings / etapas de processo, que são de topo e sem responsável por natureza).
+MALFORMED_LISTS = {"Gestão de Projetos", "Processos de Artes", "Planejamento e Gestão de CRM",
+                   "Otimização de Campanhas", "Envio de NPS", "Kickoff", "Entrada do cliente",
+                   "Agenda de clientes", "Coleta de indicações"}
 
 # ---- Campos personalizados (descobertos na lista Gestão de Projetos) ----
 CF_ACCOUNT = "89b1f5f2-cbd4-4f83-a26e-35237a3979b9"
@@ -81,6 +80,23 @@ SQUAD_OPTION_TEAM = {  # option_id -> time
     "e7381c3d-7fa2-49dc-b751-3119a12480b6": "E-SCALE",
     "5b22d724-ccb2-4d9f-a4d9-f722e60387c5": "FENIX",
 }
+
+# ---- Controle de churn: lista "Gestão de empresas" e seus campos ----
+EMPRESAS_LIST = "223068147"
+CF_FEE     = "be8d6d21-be62-4605-a6ce-341464979dd3"   # currency BRL
+CF_ENTRADA = "f4e17a53-690b-41e6-b1ff-43af524c6a70"   # date
+CF_AVISO   = "d9a5449b-43c5-4c73-9637-db41a3b76da3"   # date
+CF_SAIDA   = "6baa81c3-bd42-4d9e-974a-2fde4d015bfd"   # date
+# Squad é o MESMO campo (CF_SQUAD). O valor vem como orderindex (int) do dropdown:
+SQUAD_ORDER = {0: "ADFORCE", 1: "G.O.A.T", 2: "BULLS", 3: "VALHALLA",
+               4: "E-SCALE", 5: "COMERCIAL", 6: "FENIX", 7: "BACKOFFICE"}
+SQUAD_ALL = ["ADFORCE", "G.O.A.T", "BULLS", "VALHALLA", "E-SCALE", "COMERCIAL", "FENIX", "BACKOFFICE"]
+# Situação do cliente (status da tarefa) → grupo de churn:
+ST_ATIVO   = {"ativo", "inadimplente", "pendência adm"}          # carteira ativa (base)
+ST_ONBOARD = {"processo de entrada", "aguardando inicio"}        # entrando (ainda não na base)
+ST_AVISO   = {"aviso"}                                           # em aviso (risco de churn)
+ST_CHURN   = {"rescisão", "finalizado"}                          # saíram
+ST_PAUSA   = {"projeto pausado"}                                 # pausado
 
 TZ = datetime.timezone(datetime.timedelta(hours=-3))  # Brasília
 
@@ -146,9 +162,11 @@ def paginate(path, base_params, token, label=""):
 
 # ------------------------------------------------------------------ fetch
 def fetch_all(token):
+    scan_lists = discover_lists(token, SCAN_SPACES)
+    print(f"Listas descobertas para varrer: {len(scan_lists)}")
     print("Baixando tarefas das listas do time (abertas + concluídas)...")
     tasks, seen = [], set()
-    for lid, lname in SCAN_LISTS.items():
+    for lid, lname in scan_lists.items():
         try:
             rows = paginate(f"/list/{lid}/task",
                             {"include_closed": "true", "subtasks": "true"}, token, f"lista {lname}")
@@ -159,7 +177,37 @@ def fetch_all(token):
             print(f"  [aviso] pulando lista '{lname}' (sem acesso ou erro): {str(e)[:80]}")
     json.dump(tasks, open(os.path.join(DATA, "tasks.json"), "w", encoding="utf-8"), ensure_ascii=False)
     json.dump(fetch_avatars(token), open(os.path.join(DATA, "avatars.json"), "w", encoding="utf-8"), ensure_ascii=False)
+    fetch_empresas(token)
     return tasks
+
+def fetch_empresas(token):
+    """Baixa a lista 'Gestão de empresas' (fee, status, squad, account/gestor, datas de churn)."""
+    print("Baixando empresas (Gestão de empresas)...")
+    try:
+        rows = paginate(f"/list/{EMPRESAS_LIST}/task",
+                        {"include_closed": "true", "subtasks": "false"}, token, "empresas")
+    except ApiError as e:
+        print(f"  [aviso] não consegui baixar empresas: {str(e)[:80]}")
+        rows = []
+    json.dump(rows, open(os.path.join(DATA, "empresas.json"), "w", encoding="utf-8"), ensure_ascii=False)
+    return rows
+
+def discover_lists(token, space_ids):
+    """Descobre todas as listas (em pastas e soltas) dos espaços informados + EXTRA_LISTS."""
+    lists = dict(EXTRA_LISTS)
+    for sid in space_ids:
+        try:
+            for l in api_get(f"/space/{sid}/list", token=token).get("lists", []):
+                lists[l["id"]] = l["name"]
+        except ApiError as e:
+            print(f"  [aviso] listas soltas do espaço {sid}: {str(e)[:60]}")
+        try:
+            for f in api_get(f"/space/{sid}/folder", token=token).get("folders", []):
+                for l in f.get("lists", []):
+                    lists[l["id"]] = l["name"]
+        except ApiError as e:
+            print(f"  [aviso] pastas do espaço {sid}: {str(e)[:60]}")
+    return {lid: n for lid, n in lists.items() if n not in FETCH_EXCLUDE}
 
 def fetch_avatars(token):
     """uid -> URL da foto de perfil do ClickUp (públicas)."""
@@ -202,9 +250,29 @@ def squad_team(task):
             return SQUAD_OPTION_TEAM.get(str(f["value"]))
     return None
 
+# Termos que aparecem em [COLCHETE] mas são TIPO de arte/etapa, não cliente.
+ART_TAGS = {"fluxo", "banner", "criativo", "estático", "estatico", "email", "e-mail",
+            "post", "story", "stories", "vídeo", "video", "carrossel", "feed", "reels"}
+
+def project_from_cf(t):
+    """Nome do cliente pelo campo personalizado 'Projeto' (list_relationship → Gestão de Projetos)."""
+    for f in t.get("custom_fields", []):
+        if f.get("type") == "list_relationship" and (f.get("name") or "").strip().lower() == "projeto":
+            v = f.get("value")
+            if isinstance(v, list) and v:
+                nm = (v[0].get("name") or "").strip()
+                if nm:
+                    return nm
+    return ""
+
 def resolve_project(t, byid):
-    """Cliente/projeto da tarefa: sobe a hierarquia até o card raiz (o card do cliente).
-    Se for uma tarefa de topo (sem pai), tenta a tag [XXX] no início do nome."""
+    """Cliente/projeto da tarefa. Ordem de confiança:
+    1) campo personalizado 'Projeto' (é o vínculo real com o cliente);
+    2) card raiz da hierarquia (sobe pelos pais);
+    3) tag [XXX] no início do nome — ignorando termos de tipo de arte (FLUXO, BANNER...)."""
+    nm = project_from_cf(t)
+    if nm:
+        return nm
     seen, cur = set(), t
     while cur.get("parent") and cur["parent"] in byid and cur["parent"] not in seen:
         seen.add(cur["parent"])
@@ -212,7 +280,12 @@ def resolve_project(t, byid):
     if cur is not t:
         return (cur.get("name") or "").strip()
     m = re.match(r"\s*\[([^\]]+)\]", t.get("name", "") or "")
-    return m.group(1).strip() if m else ""
+    if m:
+        tag = m.group(1).strip()
+        first = tag.split()[0].lower() if tag else ""
+        if first not in ART_TAGS:
+            return tag
+    return ""
 
 # ------------------------------------------------------------------ adiamentos de prazo
 # A API do ClickUp não dá o histórico de mudança de prazo. Então guardamos um retrato dos
@@ -262,6 +335,164 @@ def aggregate_postponements():
         d["uids"] = e.get("uids", d["uids"])
         d["history"].append({"from": e["from"], "to": e["to"], "at": e["at"]})
     return sorted(by.values(), key=lambda x: -x["count"])
+
+# ------------------------------------------------------------------ controle de churn
+FEEHIST = os.path.join(DATA, "fee_history.json")
+
+def _cf(t, cid):
+    for f in t.get("custom_fields", []):
+        if f.get("id") == cid:
+            return f.get("value")
+    return None
+
+def _cf_currency(t, cid):
+    v = _cf(t, cid)
+    if v in (None, ""):
+        return 0.0
+    try:
+        return float(str(v).replace(",", "."))
+    except (ValueError, TypeError):
+        return 0.0
+
+def _cf_date(t, cid):
+    d = to_date(_cf(t, cid))
+    return d.isoformat() if d else None
+
+def _cf_users(t, cid):
+    v = _cf(t, cid)
+    out = []
+    if isinstance(v, list):
+        for u in v:
+            if isinstance(u, dict) and u.get("id"):
+                out.append({"uid": u["id"], "name": (u.get("username") or "").strip(),
+                            "avatar": u.get("profilePicture")})
+    return out
+
+def _cf_squad(t):
+    for f in t.get("custom_fields", []):
+        if f.get("id") == CF_SQUAD and f.get("value") not in (None, ""):
+            v = f["value"]
+            opts = (f.get("type_config") or {}).get("options") or []
+            if isinstance(v, int) or (isinstance(v, str) and v.isdigit()):
+                iv = int(v)
+                for o in opts:
+                    if o.get("orderindex") == iv:
+                        return o.get("name")
+                return SQUAD_ORDER.get(iv)
+            for o in opts:
+                if o.get("id") == v:
+                    return o.get("name")
+    return None
+
+def is_company(t):
+    """Empresa de verdade (não uma tarefa administrativa da lista): topo, com fee/entrada/squad."""
+    if t.get("parent"):
+        return False
+    st = (t.get("status") or {}).get("status", "").lower()
+    if st == "para fazer":
+        return False
+    return bool(_cf_currency(t, CF_FEE) > 0 or _cf_date(t, CF_ENTRADA) or _cf_squad(t))
+
+def build_churn(empresas):
+    """Monta o modelo de churn: fee ativo x em aviso, por squad e por pessoa (Account/Gestor).
+    churn% = fee em aviso / (fee ativo + fee em aviso) — % do faturamento em risco de sair."""
+    clients, people = [], {}
+    sq = {}
+
+    def squad_bucket(s):
+        return sq.setdefault(s, {"squad": s, "feeAtivo": 0.0, "feeAviso": 0.0, "feeChurn": 0.0,
+                                 "nAtivo": 0, "nAviso": 0, "nChurn": 0, "nOnboard": 0})
+
+    def person(u, role, squad):
+        p = people.setdefault(u["uid"], {"uid": u["uid"], "name": u["name"], "avatar": u.get("avatar"),
+                                         "roles": set(), "squads": set(),
+                                         "feeAtivo": 0.0, "feeAviso": 0.0, "feeChurn": 0.0,
+                                         "nAtivo": 0, "nAviso": 0, "nChurn": 0})
+        if role:
+            p["roles"].add(role)
+        if squad and squad != "—":
+            p["squads"].add(squad)
+        if u.get("avatar") and not p.get("avatar"):
+            p["avatar"] = u["avatar"]
+        return p
+
+    for t in empresas:
+        if not is_company(t):
+            continue
+        st = (t.get("status") or {}).get("status", "").lower()
+        fee = _cf_currency(t, CF_FEE)
+        squad = _cf_squad(t) or "—"
+        acc = _cf_users(t, CF_ACCOUNT)
+        ges = _cf_users(t, CF_GESTOR)
+        grp = ("ativo" if st in ST_ATIVO else "aviso" if st in ST_AVISO
+               else "churn" if st in ST_CHURN else "onboard" if st in ST_ONBOARD
+               else "pausa" if st in ST_PAUSA else "outro")
+        saida = _cf_date(t, CF_SAIDA)
+        aviso = _cf_date(t, CF_AVISO)
+        clients.append({"id": t["id"], "name": (t.get("name") or "").strip(), "fee": round(fee, 2),
+                        "status": st, "grp": grp, "squad": squad,
+                        "account": acc[0]["name"] if acc else None, "accountUid": acc[0]["uid"] if acc else None,
+                        "gestor": ges[0]["name"] if ges else None, "gestorUid": ges[0]["uid"] if ges else None,
+                        "entrada": _cf_date(t, CF_ENTRADA), "aviso": aviso, "saida": saida,
+                        "churnDate": saida or aviso})
+        S = squad_bucket(squad)
+        involved = [(u, "Account") for u in acc] + [(u, "Gestor de Tráfego") for u in ges]
+        if grp == "ativo":
+            S["feeAtivo"] += fee; S["nAtivo"] += 1
+            for u, r in involved:
+                p = person(u, r, squad); p["feeAtivo"] += fee; p["nAtivo"] += 1
+        elif grp == "aviso":
+            S["feeAviso"] += fee; S["nAviso"] += 1
+            for u, r in involved:
+                p = person(u, r, squad); p["feeAviso"] += fee; p["nAviso"] += 1
+        elif grp == "churn":
+            S["feeChurn"] += fee; S["nChurn"] += 1
+            for u, r in involved:
+                p = person(u, r, squad); p["feeChurn"] += fee; p["nChurn"] += 1
+        elif grp == "onboard":
+            S["nOnboard"] += 1
+
+    def churn_pct(atv, avi):
+        base = atv + avi
+        return round(avi / base * 100, 2) if base > 0 else 0.0
+
+    squads = []
+    for s in SQUAD_ALL + [k for k in sq if k not in SQUAD_ALL]:
+        S = sq.get(s)
+        if not S or (S["nAtivo"] + S["nAviso"] + S["nChurn"] == 0):
+            continue
+        S["churnPct"] = churn_pct(S["feeAtivo"], S["feeAviso"])
+        for k in ("feeAtivo", "feeAviso", "feeChurn"):
+            S[k] = round(S[k], 2)
+        squads.append(S)
+
+    ppl = []
+    for p in people.values():
+        if p["nAtivo"] + p["nAviso"] + p["nChurn"] == 0:
+            continue
+        p["roles"] = sorted(p["roles"]); p["squads"] = sorted(p["squads"])
+        p["churnPct"] = churn_pct(p["feeAtivo"], p["feeAviso"])
+        for k in ("feeAtivo", "feeAviso", "feeChurn"):
+            p[k] = round(p[k], 2)
+        ppl.append(p)
+    ppl.sort(key=lambda x: -(x["feeAtivo"] + x["feeAviso"]))
+
+    tot_atv = round(sum(S["feeAtivo"] for S in squads), 2)
+    tot_avi = round(sum(S["feeAviso"] for S in squads), 2)
+    totals = {"feeAtivo": tot_atv, "feeAviso": tot_avi,
+              "nAtivo": sum(S["nAtivo"] for S in squads), "nAviso": sum(S["nAviso"] for S in squads),
+              "nChurn": sum(S["nChurn"] for S in squads), "churnPct": churn_pct(tot_atv, tot_avi)}
+    return {"totals": totals, "squads": squads, "people": ppl, "clients": clients, "squadOrder": SQUAD_ALL}
+
+def record_fee_snapshot(churn, today):
+    hist = _load(FEEHIST, {})
+    hist[today.isoformat()] = {
+        "feeAtivo": churn["totals"]["feeAtivo"], "feeAviso": churn["totals"]["feeAviso"],
+        "churnPct": churn["totals"]["churnPct"],
+        "bySquad": {S["squad"]: S["feeAtivo"] for S in churn["squads"]},
+    }
+    json.dump(hist, open(FEEHIST, "w", encoding="utf-8"), ensure_ascii=False)
+    return hist
 
 # ------------------------------------------------------------------ analyze
 def analyze(tasks, record=False):
@@ -313,8 +544,8 @@ def analyze(tasks, record=False):
                             "id": t["id"], "name": t.get("name", ""), "status": st,
                             "priority": pr, "list": lst, "project": proj, "uid": uid,
                         })
-            # mal cadastradas: só tarefas de topo abertas (subtarefa sem dono/prazo herda do pai)
-            if not t.get("parent"):
+            # mal cadastradas: só tarefas de topo abertas, nas listas de trabalho de cliente
+            if not t.get("parent") and lst in MALFORMED_LISTS:
                 problems = []
                 if not assignees:
                     problems.append("sem_responsavel")
@@ -350,6 +581,14 @@ def analyze(tasks, record=False):
     members = [{"uid": u, "name": MEMBERS[u][0], "team": MEMBERS[u][1], "role": MEMBERS[u][2],
                 "avatar": avatars.get(str(u))} for u in MEMBER_ORDER]
     postpones = aggregate_postponements()
+
+    # ---- controle de churn (lista Gestão de empresas) ----
+    empresas = _load(os.path.join(DATA, "empresas.json"), [])
+    churn = build_churn(empresas)
+    if record:
+        record_fee_snapshot(churn, today)
+    fee_history = _load(FEEHIST, {})
+
     model = {
         "generated": today.strftime("%d/%m/%Y"),
         "window": {"from": min_day.isoformat(), "to": today.isoformat()},
@@ -360,10 +599,15 @@ def analyze(tasks, record=False):
         "done": done,
         "created": created,
         "postpones": postpones,
+        "churn": churn,
+        "feeHistory": fee_history,
     }
     json.dump(model, open(os.path.join(HERE, "model.json"), "w", encoding="utf-8"), ensure_ascii=False)
     print(f"\nmodel.json: {len(overdue)} atrasos · {len(today_tasks)} p/ hoje · {len(done)} concluídas · "
           f"{len(malformed)} mal cadastradas · {len(postpones)} com adiamento · janela {min_day} → {today}")
+    print(f"churn: {len(churn['clients'])} empresas · fee ativo R$ {churn['totals']['feeAtivo']:.0f} · "
+          f"em aviso R$ {churn['totals']['feeAviso']:.0f} · churn {churn['totals']['churnPct']}% · "
+          f"{len(churn['squads'])} squads · {len(churn['people'])} pessoas")
     return model
 
 # ------------------------------------------------------------------ main

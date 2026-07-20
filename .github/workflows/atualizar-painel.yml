@@ -5,6 +5,7 @@ on:
     branches: [main]        # ao enviar mudanças de código, republica (o commit de estado usa [skip ci])
   schedule:
     - cron: "0 9,15,21 * * *"   # 09/15/21 UTC = 06:00, 12:00 e 18:00 no horário de Brasília
+    - cron: "59 2 * * *"        # 02:59 UTC = 23:59 em Brasília: fecha o snapshot do fee do dia (churn)
   workflow_dispatch: {}     # botão "Run workflow" para rodar na hora
 
 permissions:
@@ -43,8 +44,8 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/state.json data/postpone_log.json
-          git commit -m "atualiza estado de adiamentos [skip ci]" || echo "nada a commitar"
+          git add data/state.json data/postpone_log.json data/fee_history.json
+          git commit -m "atualiza estado (adiamentos + fee) [skip ci]" || echo "nada a commitar"
           git push
 
       - name: Configurar GitHub Pages

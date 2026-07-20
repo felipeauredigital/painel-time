@@ -4,6 +4,7 @@ token.txt
 
 # gerados / grandes — não versionar
 data/tasks.json
+data/empresas.json
 data/assigned.json
 data/scan.json
 data/avatars.json
@@ -14,6 +15,6 @@ __pycache__/
 *.pyc
 *.log
 
-# OBS: data/state.json e data/postpone_log.json NÃO são ignorados de propósito —
-# eles guardam o histórico de adiamentos e precisam ser versionados para
-# acumular entre as rodadas automáticas na nuvem.
+# OBS: data/state.json, data/postpone_log.json e data/fee_history.json NÃO são
+# ignorados de propósito — guardam o histórico de adiamentos e o snapshot diário
+# do fee (churn) e precisam ser versionados para acumular entre as rodadas na nuvem.
