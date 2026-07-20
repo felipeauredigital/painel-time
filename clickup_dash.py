@@ -438,6 +438,7 @@ def build_churn(empresas, variavel=None):
                         "status": st, "grp": grp, "squad": squad,
                         "account": acc[0]["name"] if acc else None, "accountUid": acc[0]["uid"] if acc else None,
                         "gestor": ges[0]["name"] if ges else None, "gestorUid": ges[0]["uid"] if ges else None,
+                        "accountUids": [u["uid"] for u in acc], "gestorUids": [u["uid"] for u in ges],
                         "entrada": _cf_date(t, CF_ENTRADA), "aviso": aviso, "saida": saida,
                         "churnDate": saida or aviso})
         S = squad_bucket(squad)
@@ -506,22 +507,30 @@ def build_churn(empresas, variavel=None):
               "nChurn": sum(S["nChurn"] for S in squads), "churnPct": churn_pct(tot_atv, tot_avi),
               "churnPctVar": churn_pct(tot_atv + tot_var, tot_avi)}
 
-    # ---- Projeção: cliente em aviso hoje sai ~30 dias depois (modelo da planilha "Projetos 01/MM") ----
+    # ---- Projeção: cliente em aviso hoje sai ~30 dias depois (modelo da planilha "Projetos 01/MM").
+    # TODO cliente em aviso entra na projeção — mesmo sem data do aviso (vai p/ "sem-data"), para casar
+    # exatamente com o churn/carteira das pessoas (senão a projeção "não busca todos os churns").
     projection = {}
     for c in clients:
-        if c["grp"] == "aviso" and c.get("aviso"):
+        if c["grp"] != "aviso":
+            continue
+        dt = None
+        if c.get("aviso"):
             try:
                 dt = datetime.date.fromisoformat(c["aviso"]) + datetime.timedelta(days=30)
             except Exception:
-                continue
-            key = "%04d-%02d" % (dt.year, dt.month)
-            pr = projection.setdefault(key, {"mes": key, "n": 0, "fee": 0.0, "clients": []})
-            pr["n"] += 1; pr["fee"] += c["fee"]
-            pr["clients"].append({"name": c["name"], "squad": c["squad"], "fee": round(c["fee"], 2),
-                                  "churnEm": dt.isoformat(),
-                                  "account": c.get("account"), "accountUid": c.get("accountUid"),
-                                  "gestor": c.get("gestor"), "gestorUid": c.get("gestorUid")})
-    projection = [dict(v, fee=round(v["fee"], 2)) for v in sorted(projection.values(), key=lambda x: x["mes"])]
+                dt = None
+        key = ("%04d-%02d" % (dt.year, dt.month)) if dt else "sem-data"
+        pr = projection.setdefault(key, {"mes": key, "n": 0, "fee": 0.0, "clients": []})
+        pr["n"] += 1; pr["fee"] += c["fee"]
+        pr["clients"].append({"name": c["name"], "squad": c["squad"], "fee": round(c["fee"], 2),
+                              "churnEm": dt.isoformat() if dt else None,
+                              "account": c.get("account"), "accountUid": c.get("accountUid"),
+                              "gestor": c.get("gestor"), "gestorUid": c.get("gestorUid"),
+                              "accountUids": c.get("accountUids") or [], "gestorUids": c.get("gestorUids") or []})
+    # ordena por mês; "sem-data" por último
+    projection = [dict(v, fee=round(v["fee"], 2)) for v in sorted(projection.values(),
+                  key=lambda x: ("9999-99" if x["mes"] == "sem-data" else x["mes"]))]
 
     return {"totals": totals, "squads": squads, "people": ppl, "clients": clients,
             "squadOrder": SQUAD_ALL, "projection": projection, "variavelMes": (variavel or {}).get("mes")}
