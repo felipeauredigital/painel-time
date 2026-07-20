@@ -949,7 +949,7 @@ function renderChurnHistory(C,m,scope){
   const H=MODEL.churnHistory||{}; const allMeses=Object.keys(H.meses||{}).sort();
   const anos=[...new Set(allMeses.map(k=>k.slice(0,4)))];
   const meses=churnYear==="all"?allMeses:allMeses.filter(k=>k.startsWith(churnYear));
-  const allSquads=(H.squads||["TOTAL"]);
+  const allSquads=(H.squads||["TOTAL"]).filter(s=>s!=="—");
   // escopo
   let squads=allSquads, chartSquad="TOTAL", tit="agência (TOTAL)", scopedMissing=false;
   if(scope.slice(0,3)==="sq:"){const sn=scope.slice(3);tit=sn;

@@ -543,8 +543,11 @@ def record_churn_history(churn, hist, today):
     hist.setdefault("meses", {})
     key = "%04d-%02d" % (today.year, today.month)
     month = hist["meses"].setdefault(key, {})
-    order = [s for s in hist["squads"] if s != "TOTAL"]
+    order = [s for s in hist["squads"] if s not in ("TOTAL", "—")]
+    month.pop("—", None)   # "—" = clientes sem squad; não é um squad de verdade
     for S in churn["squads"]:
+        if S["squad"] == "—":
+            continue
         month[S["squad"]] = S["churnPct"]
         if S["squad"] not in order:
             order.append(S["squad"])
