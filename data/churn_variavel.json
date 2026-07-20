@@ -1,0 +1,12 @@
+{
+  "_fonte": "Google Sheet — CONTROLE CHURN 01/02/2026 (snapshot mais recente preenchido)",
+  "mes": "2026-02",
+  "aure": {"fee": 553508.00, "variavel": 48152.75, "comVariavel": 601660.75},
+  "bySquad": {
+    "G.O.A.T": {"fee": 209876.00, "variavel": 4551.00},
+    "BULLS":   {"fee": 125416.00, "variavel": 5007.71},
+    "E-SCALE": {"fee": 158783.00, "variavel": 29498.98},
+    "ADFORCE": {"fee": 48101.00,  "variavel": 8496.00}
+  },
+  "bonificacao": {"p5": 27675.40, "p3": 16605.24, "p2": 10389.16, "p1": 5194.58, "splitAccount": 0.65, "splitGestor": 0.35}
+}

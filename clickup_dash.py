@@ -395,9 +395,10 @@ def is_company(t):
         return False
     return bool(_cf_currency(t, CF_FEE) > 0 or _cf_date(t, CF_ENTRADA) or _cf_squad(t))
 
-def build_churn(empresas):
+def build_churn(empresas, variavel=None):
     """Monta o modelo de churn: fee ativo x em aviso, por squad e por pessoa (Account/Gestor).
-    churn% = fee em aviso / (fee ativo + fee em aviso) — % do faturamento em risco de sair."""
+    churn% = fee em aviso / (fee ativo + fee em aviso) — % do faturamento em risco de sair.
+    variavel: snapshot manual da planilha {"mes":..,"bySquad":{squad:{"variavel":R$}}} p/ a base Fee+Variável."""
     clients, people = [], {}
     sq = {}
 
@@ -481,12 +482,47 @@ def build_churn(empresas):
         ppl.append(p)
     ppl.sort(key=lambda x: -(x["feeAtivo"] + x["feeAviso"]))
 
+    # ---- Fee + Variável (comissão do mês; snapshot manual importado da planilha) ----
+    vbys = (variavel or {}).get("bySquad", {})
+    for S in squads:
+        v = float((vbys.get(S["squad"]) or {}).get("variavel") or 0.0)
+        S["variavel"] = round(v, 2)
+        S["feeAtivoVar"] = round(S["feeAtivo"] + v, 2)
+        S["churnPctVar"] = churn_pct(S["feeAtivo"] + v, S["feeAviso"])
+
     tot_atv = round(sum(S["feeAtivo"] for S in squads), 2)
     tot_avi = round(sum(S["feeAviso"] for S in squads), 2)
-    totals = {"feeAtivo": tot_atv, "feeAviso": tot_avi,
+    tot_var = round(sum(S.get("variavel", 0.0) for S in squads), 2)
+    ratio = (tot_var / tot_atv) if tot_atv else 0.0   # rateio uniforme p/ estimar variável por pessoa
+    for p in ppl:
+        pv = round(p["feeAtivo"] * ratio, 2)
+        p["variavel"] = pv
+        p["feeAtivoVar"] = round(p["feeAtivo"] + pv, 2)
+        p["churnPctVar"] = churn_pct(p["feeAtivo"] + pv, p["feeAviso"])
+
+    totals = {"feeAtivo": tot_atv, "feeAviso": tot_avi, "variavel": tot_var,
+              "feeAtivoVar": round(tot_atv + tot_var, 2),
               "nAtivo": sum(S["nAtivo"] for S in squads), "nAviso": sum(S["nAviso"] for S in squads),
-              "nChurn": sum(S["nChurn"] for S in squads), "churnPct": churn_pct(tot_atv, tot_avi)}
-    return {"totals": totals, "squads": squads, "people": ppl, "clients": clients, "squadOrder": SQUAD_ALL}
+              "nChurn": sum(S["nChurn"] for S in squads), "churnPct": churn_pct(tot_atv, tot_avi),
+              "churnPctVar": churn_pct(tot_atv + tot_var, tot_avi)}
+
+    # ---- Projeção: cliente em aviso hoje sai ~30 dias depois (modelo da planilha "Projetos 01/MM") ----
+    projection = {}
+    for c in clients:
+        if c["grp"] == "aviso" and c.get("aviso"):
+            try:
+                dt = datetime.date.fromisoformat(c["aviso"]) + datetime.timedelta(days=30)
+            except Exception:
+                continue
+            key = "%04d-%02d" % (dt.year, dt.month)
+            pr = projection.setdefault(key, {"mes": key, "n": 0, "fee": 0.0, "clients": []})
+            pr["n"] += 1; pr["fee"] += c["fee"]
+            pr["clients"].append({"name": c["name"], "squad": c["squad"], "fee": round(c["fee"], 2),
+                                  "churnEm": dt.isoformat()})
+    projection = [dict(v, fee=round(v["fee"], 2)) for v in sorted(projection.values(), key=lambda x: x["mes"])]
+
+    return {"totals": totals, "squads": squads, "people": ppl, "clients": clients,
+            "squadOrder": SQUAD_ALL, "projection": projection, "variavelMes": (variavel or {}).get("mes")}
 
 def record_fee_snapshot(churn, today):
     hist = _load(FEEHIST, {})
@@ -588,7 +624,10 @@ def analyze(tasks, record=False):
 
     # ---- controle de churn (lista Gestão de empresas) ----
     empresas = _load(os.path.join(DATA, "empresas.json"), [])
-    churn = build_churn(empresas)
+    # snapshot manual da planilha (histórico churn% por mês + variável do mês). Editáveis à mão.
+    churn_history = _load(os.path.join(DATA, "churn_history.json"), {})
+    variavel = _load(os.path.join(DATA, "churn_variavel.json"), {})
+    churn = build_churn(empresas, variavel)
     if record:
         record_fee_snapshot(churn, today)
     fee_history = _load(FEEHIST, {})
@@ -605,6 +644,7 @@ def analyze(tasks, record=False):
         "postpones": postpones,
         "churn": churn,
         "feeHistory": fee_history,
+        "churnHistory": churn_history,
     }
     json.dump(model, open(os.path.join(HERE, "model.json"), "w", encoding="utf-8"), ensure_ascii=False)
     print(f"\nmodel.json: {len(overdue)} atrasos · {len(today_tasks)} p/ hoje · {len(done)} concluídas · "
