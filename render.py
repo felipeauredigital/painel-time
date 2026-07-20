@@ -342,6 +342,7 @@ const MEM = {}; MODEL.members.forEach(m=>MEM[m.uid]=m);
 const PPBYID = {}; (MODEL.postpones||[]).forEach(p=>{PPBYID[p.id]=p;});
 const HKEY="clk_hidden_v1";
 let page="overview", team="all", selUid=MODEL.members[0]?.uid, dFrom=MODEL.window.to, dTo=MODEL.window.to;  // abre em "Hoje"
+let churnView="overview";  // navegação micro do churn: "overview" | "sq:NOME" | "pp:UID"
 const $=id=>document.getElementById(id);
 const esc=s=>(s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const sev=d=>d>30?"crit":d>7?"high":d>0?"med":"today";
@@ -667,9 +668,11 @@ function importCfg(file){const r=new FileReader();r.onload=()=>{try{const c=JSON
   showToast("Config importada.");render();}catch(e){alert("Arquivo de config inválido.");}};r.readAsText(file);}
 
 function renderChurn(){
+  const C=MODEL.churn||{squads:[],people:[],clients:[],totals:{}}, m=metas(), hiddenSq=new Set(m.hidden||[]);
+  if(churnView.slice(0,3)==="sq:")return renderChurnSquad(churnView.slice(3),C,m,hiddenSq);
+  if(churnView.slice(0,3)==="pp:")return renderChurnPerson(+churnView.slice(3),C,m,hiddenSq);
   $("ptitle").textContent="Controle de churn";
   $("topright").innerHTML=`<div class="stepbtns"><button class="btn" data-export-cfg>⭳ Exportar</button><button class="btn" data-import-cfg>⭱ Importar</button></div>`;
-  const C=MODEL.churn||{squads:[],people:[],clients:[],totals:{}}, m=metas(), hiddenSq=new Set(m.hidden||[]);
   const squads=(C.squads||[]).filter(s=>s.squad!=="—"&&!hiddenSq.has(s.squad));
   const tAtv=squads.reduce((s,x)=>s+x.feeAtivo,0), tAvi=squads.reduce((s,x)=>s+x.feeAviso,0);
   const tPct=(tAtv+tAvi)?+(tAvi/(tAtv+tAvi)*100).toFixed(2):0, z=zoneOf(tPct,m);
@@ -680,7 +683,7 @@ function renderChurn(){
   const people=(C.people||[]).filter(p=>(p.nAtivo+p.nAviso)>0&&(p.squads||[]).some(s=>!hiddenSq.has(s))).sort((a,b)=>b.churnPct-a.churnPct||b.feeAviso-a.feeAviso);
   const fh=Object.entries(MODEL.feeHistory||{}).filter(([d])=>inRng(d)).sort((a,b)=>a[0]<b[0]?-1:1);
   const fhMax=Math.max(1,...fh.map(([,v])=>v.feeAtivo||0));
-  const squadRow=s=>{const zz=zoneOf(s.churnPct,m);return `<div class="sqrow">
+  const squadRow=s=>{const zz=zoneOf(s.churnPct,m);return `<div class="sqrow" data-churn-open="sq:${esc(s.squad)}" style="cursor:pointer" title="Abrir ${esc(s.squad)}">
     <div><div class="sqn">${esc(s.squad)}</div><div class="sqmeta">${s.nAtivo} ativos · ${s.nAviso} em aviso</div></div>
     <div class="barcell">${attainBar(s.churnPct,m)}<div style="display:flex;justify-content:space-between;gap:8px;margin-top:5px;font-size:11px;color:var(--muted)">
       <span>${BRL(s.feeAtivo)} ativo</span><span class="zbadge ${zz}">${ZONEL[zz]}</span><span style="color:var(--crit)">${BRL(s.feeAviso)} aviso</span></div></div>
@@ -706,12 +709,12 @@ function renderChurn(){
         <div class="note">A barra mostra o churn atual contra a <b>super meta (${m.sup}%)</b> e a <b>meta (${m.meta}%)</b>. Quanto <b>menor</b>, melhor. Edite as metas em <b>Times &amp; metas</b>.</div>
       </div></div>
 
-    <div class="card"><div class="card-h"><h3>Por squad</h3><div class="r">${squads.length} squads</div></div>
+    <div class="card"><div class="card-h"><h3>Por squad</h3><div class="r">${squads.length} squads · clique para abrir</div></div>
       <div class="pad">${squads.map(squadRow).join("")||'<div class="empty">Sem squads para mostrar.</div>'}</div></div>
 
-    <div class="card"><div class="card-h"><h3>Por pessoa</h3><div class="r">carteira (Account + Gestor)</div></div>
+    <div class="card"><div class="card-h"><h3>Por pessoa</h3><div class="r">carteira (Account + Gestor) · clique para abrir</div></div>
       <div class="tblwrap"><table class="ctable"><thead><tr><th>Pessoa</th><th>Squad</th><th class="r">Fee ativo</th><th class="r">Em aviso</th><th class="r">Churn</th><th style="width:120px">Meta</th></tr></thead>
-      <tbody>${people.map(p=>{const zz=zoneOf(p.churnPct,m);return `<tr>
+      <tbody>${people.map(p=>{const zz=zoneOf(p.churnPct,m);return `<tr data-churn-open="pp:${p.uid}" style="cursor:pointer">
         <td><div style="display:flex;align-items:center;gap:9px">${avaChurn(p)}<span><b>${esc(p.name||"—")}</b><br><span style="font-size:10.5px;color:var(--muted)">${(p.roles||[]).map(r=>r==="Gestor de Tráfego"?"Gestor":r).join(" · ")}</span></span></div></td>
         <td>${(p.squads||[]).map(s=>`<span class="sqtag">${esc(s)}</span>`).join(" ")||"—"}</td>
         <td class="r fee">${BRL(p.feeAtivo)}</td><td class="r fee" style="color:${p.feeAviso?'var(--crit)':'var(--muted)'}">${p.feeAviso?BRL(p.feeAviso):"—"}</td>
@@ -736,6 +739,128 @@ function renderChurn(){
         <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:11px;color:var(--muted)"><span>${fmtBR(fh[0][0])}</span><span>${fmtBR(fh[fh.length-1][0])}</span></div>`
       :`<div class="note">📅 O histórico de fee é gravado <b>1×/dia às 23h59</b> e começa a partir de hoje. Em alguns dias esta curva mostra a evolução do faturamento conforme clientes entram e saem.</div>`}</div></div>
   </div>`;
+}
+
+/* ---------------- CHURN · MICRO (por squad / por pessoa) ---------------- */
+function churnPctCalc(atv,avi){return (atv+avi)?+(avi/(atv+avi)*100).toFixed(2):0;}
+function bigAva(x){const nm=typeof x==="string"?x:((x&&x.name)||"—");const av=(x&&typeof x==="object")?x.avatar:null;const ini=esc(initials(nm));
+  if(av)return `<span class="avatar" style="position:relative;overflow:hidden">${ini}<img src="${esc(av)}" alt="" loading="lazy" referrerpolicy="no-referrer" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover" onerror="this.remove()"></span>`;
+  return `<div class="avatar">${ini}</div>`;}
+function squadInitial(s){return esc(((s||"?").trim()[0]||"?").toUpperCase());}
+
+function renderChurnSquad(name,C,m,hiddenSq){
+  const squadsVis=(C.squads||[]).filter(s=>s.squad!=="—"&&!hiddenSq.has(s.squad));
+  const s=squadsVis.find(x=>x.squad===name)||(C.squads||[]).find(x=>x.squad===name);
+  if(!s){churnView="overview";return renderChurn();}
+  const cls=(C.clients||[]).filter(c=>c.squad===name);
+  const ativos=cls.filter(c=>c.grp==="ativo").sort((a,b)=>b.fee-a.fee);
+  const aviso=cls.filter(c=>c.grp==="aviso").sort((a,b)=>b.fee-a.fee);
+  const saidas=cls.filter(c=>c.grp==="churn"&&c.churnDate&&inRng(c.churnDate)).sort((a,b)=>a.churnDate<b.churnDate?1:-1);
+  const perdido=saidas.reduce((x,c)=>x+c.fee,0), zz=zoneOf(s.churnPct,m);
+  const PBYU={};(C.people||[]).forEach(p=>PBYU[p.uid]=p);
+  const pmap={};
+  cls.forEach(c=>{[["Account",c.accountUid],["Gestor de Tráfego",c.gestorUid]].forEach(([role,uid])=>{
+    if(!uid)return;const p=pmap[uid]||(pmap[uid]={uid,name:(PBYU[uid]&&PBYU[uid].name)||"—",avatar:PBYU[uid]&&PBYU[uid].avatar,feeAtivo:0,feeAviso:0,nAtivo:0,nAviso:0,roles:new Set()});
+    p.roles.add(role);if(c.grp==="ativo"){p.feeAtivo+=c.fee;p.nAtivo++;}else if(c.grp==="aviso"){p.feeAviso+=c.fee;p.nAviso++;}});});
+  const ppl=Object.values(pmap).map(p=>({uid:p.uid,name:p.name,avatar:p.avatar,feeAtivo:p.feeAtivo,feeAviso:p.feeAviso,nAtivo:p.nAtivo,nAviso:p.nAviso,roles:[...p.roles],churnPct:churnPctCalc(p.feeAtivo,p.feeAviso)})).filter(p=>p.nAtivo+p.nAviso>0).sort((a,b)=>b.churnPct-a.churnPct||b.feeAviso-a.feeAviso);
+  const fh=Object.entries(MODEL.feeHistory||{}).filter(([d])=>inRng(d)).sort((a,b)=>a[0]<b[0]?-1:1).map(([d,v])=>[d,(v.bySquad&&v.bySquad[name])||0]);
+  const fhMax=Math.max(1,...fh.map(([,x])=>x));
+  $("ptitle").textContent="Churn · "+name;
+  $("topright").innerHTML=`<div class="stepbtns"><button class="btn" data-churn-back>← Voltar</button><button class="btn" data-churn-step="-1">↑ Squad ant.</button><button class="btn" data-churn-step="1">Próx. squad ↓</button></div>`;
+  const cRow=(c,dk)=>`<tr><td><a class="cname" href="https://app.clickup.com/t/${c.id}" target="_blank" rel="noopener">${esc(c.name)}</a></td><td>${esc(c.account||"—")}</td><td>${esc(c.gestor||"—")}</td><td class="r fee"${c.grp==="aviso"?' style="color:var(--crit)"':''}>${BRL(c.fee)}</td>${dk?`<td class="r">${c[dk]?fmtBR(c[dk]):"—"}</td>`:''}</tr>`;
+  $("root").innerHTML=`<div class="content"><div class="col">
+    <div class="banner"><div class="bt"><h2>${esc(name)}</h2>
+      <p>${BRL(s.feeAtivo)} de fee ativo · ${BRL(s.feeAviso)} em aviso (${s.nAviso} cliente(s)) — churn de <b>${s.churnPct}%</b>. Meta ≤ ${m.meta}% · super ≤ ${m.sup}%.</p>
+      <div class="cta"><button class="ghost" data-churn-back>← Todos os squads</button></div>
+    </div><div class="avatar">${squadInitial(name)}</div></div>
+    <div class="kpis">
+      <div class="kpi"><div class="n">${BRL(s.feeAtivo)}</div><div class="l">Fee ativo</div><div class="s">${s.nAtivo} clientes</div></div>
+      <div class="kpi"><div class="n" style="color:var(--crit)">${BRL(s.feeAviso)}</div><div class="l">Fee em aviso</div><div class="s">${s.nAviso} clientes</div></div>
+      <div class="kpi"><div class="n" style="color:${ZONEC[zz]}">${s.churnPct}%</div><div class="l">Churn</div><div class="s"><span class="zbadge ${zz}">${ZONEL[zz]}</span></div></div>
+      <div class="kpi"><div class="n">${BRL(perdido)}</div><div class="l">Saídas no período</div><div class="s">${saidas.length} cliente(s)</div></div>
+    </div>
+    <div class="card"><div class="card-h"><h3>Atingimento de meta — ${esc(name)}</h3><div class="r">churn ${s.churnPct}% · meta ≤ ${m.meta}% · super ≤ ${m.sup}%</div></div>
+      <div class="pad"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px"><b style="font-family:var(--display);font-size:30px;color:${ZONEC[zz]}">${s.churnPct}%</b><span class="zbadge ${zz}">${ZONEL[zz]}</span></div>${attainBar(s.churnPct,m,true)}<div style="height:26px"></div></div></div>
+    <div class="card"><div class="card-h"><h3>Pessoas do squad</h3><div class="r">${ppl.length} · clique para abrir</div></div>
+      <div class="tblwrap"><table class="ctable"><thead><tr><th>Pessoa</th><th>Papel</th><th class="r">Fee ativo</th><th class="r">Em aviso</th><th class="r">Churn</th><th style="width:120px">Meta</th></tr></thead>
+      <tbody>${ppl.map(p=>{const pz=zoneOf(p.churnPct,m);return `<tr data-churn-open="pp:${p.uid}" style="cursor:pointer">
+        <td><div style="display:flex;align-items:center;gap:9px">${avaChurn(p)}<b>${esc(p.name)}</b></div></td>
+        <td>${p.roles.map(r=>r==="Gestor de Tráfego"?"Gestor":r).join(" · ")}</td>
+        <td class="r fee">${BRL(p.feeAtivo)}</td><td class="r fee" style="color:${p.feeAviso?'var(--crit)':'var(--muted)'}">${p.feeAviso?BRL(p.feeAviso):"—"}</td>
+        <td class="r"><b style="color:${ZONEC[pz]}">${p.churnPct}%</b></td><td>${attainBar(p.churnPct,m)}</td></tr>`;}).join("")||'<tr><td colspan="6" class="empty">Sem pessoas vinculadas.</td></tr>'}</tbody></table></div></div>
+    <div class="card"><div class="card-h"><h3>Clientes em aviso</h3><div class="r">${aviso.length} · ${BRL(aviso.reduce((x,c)=>x+c.fee,0))}</div></div>
+      ${aviso.length?`<div class="tblwrap"><table class="ctable"><thead><tr><th>Cliente</th><th>Account</th><th>Gestor</th><th class="r">Fee</th><th class="r">Aviso</th></tr></thead><tbody>${aviso.map(c=>cRow(c,"aviso")).join("")}</tbody></table></div>`:'<div class="empty">Nenhum cliente em aviso 🎉</div>'}</div>
+    <div class="card"><div class="card-h"><h3>Clientes ativos</h3><div class="r">${ativos.length} · ${BRL(ativos.reduce((x,c)=>x+c.fee,0))}</div></div>
+      ${ativos.length?`<div class="tblwrap"><table class="ctable"><thead><tr><th>Cliente</th><th>Account</th><th>Gestor</th><th class="r">Fee</th></tr></thead><tbody>${ativos.map(c=>cRow(c,null)).join("")}</tbody></table></div>`:'<div class="empty">—</div>'}</div>
+    <div class="card"><div class="card-h"><h3>Saídas no período</h3><div class="r">${fmtBR(dFrom)} → ${fmtBR(dTo)} · ${saidas.length} · ${BRL(perdido)}</div></div>
+      ${saidas.length?`<div class="tblwrap"><table class="ctable"><thead><tr><th>Cliente</th><th>Account</th><th>Gestor</th><th class="r">Fee</th><th class="r">Saída</th></tr></thead><tbody>${saidas.map(c=>cRow(c,"churnDate")).join("")}</tbody></table></div>`:'<div class="empty">Nenhuma saída nesse período.</div>'}</div>
+    <div class="card"><div class="card-h"><h3>Fee ativo do squad ao longo do tempo</h3><div class="r">${fmtBR(dFrom)} → ${fmtBR(dTo)}</div></div>
+      <div class="pad">${fh.length>1?`<div class="fbars">${fh.map(([d,x])=>`<div class="fb" style="height:${Math.max(3,x/fhMax*82)}px" title="${fmtBR(d)}: ${BRL(x)}"></div>`).join("")}</div><div style="display:flex;justify-content:space-between;margin-top:6px;font-size:11px;color:var(--muted)"><span>${fmtBR(fh[0][0])}</span><span>${fmtBR(fh[fh.length-1][0])}</span></div>`:'<div class="note">📅 O histórico por squad é gravado 1×/dia às 23h59 e começa a acumular a partir de agora.</div>'}</div></div>
+  </div>
+  <div class="col"><div class="acard"><h3>Squads</h3><p class="sub">${squadsVis.length} · clique para abrir</p>
+    <div class="plist">${squadsVis.map(x=>{const xz=zoneOf(x.churnPct,m);return `<button class="pitem" data-churn-open="sq:${esc(x.squad)}" aria-selected="${x.squad===name}">
+      <span class="ava" style="width:32px;height:32px;font-size:11px;border-radius:9px;background:linear-gradient(135deg,var(--gold),var(--gold-2));color:#fff;display:grid;place-items:center;font-weight:800">${squadInitial(x.squad)}</span>
+      <span class="pn"><b>${esc(x.squad)}</b><span>${x.nAtivo} ativos · ${x.nAviso} aviso</span></span>
+      <span class="chipn" style="color:${ZONEC[xz]}">${x.churnPct}<span style="font-size:9px">%</span></span></button>`;}).join("")}</div></div></div></div>`;
+}
+
+function renderChurnPerson(uid,C,m,hiddenSq){
+  const PBYU={};(C.people||[]).forEach(p=>PBYU[p.uid]=p);
+  const pref=PBYU[uid];
+  const cls=(C.clients||[]).filter(c=>(c.accountUid===uid||c.gestorUid===uid)&&!hiddenSq.has(c.squad));
+  if(!pref&&!cls.length){churnView="overview";return renderChurn();}
+  const name=(pref&&pref.name)||(cls[0]&&(cls[0].accountUid===uid?cls[0].account:cls[0].gestor))||"—";
+  const ativos=cls.filter(c=>c.grp==="ativo").sort((a,b)=>b.fee-a.fee);
+  const aviso=cls.filter(c=>c.grp==="aviso").sort((a,b)=>b.fee-a.fee);
+  const saidas=cls.filter(c=>c.grp==="churn"&&c.churnDate&&inRng(c.churnDate)).sort((a,b)=>a.churnDate<b.churnDate?1:-1);
+  const feeAtv=ativos.reduce((x,c)=>x+c.fee,0), feeAvi=aviso.reduce((x,c)=>x+c.fee,0);
+  const pct=churnPctCalc(feeAtv,feeAvi), zz=zoneOf(pct,m);
+  const roleOf=c=>(c.accountUid===uid&&c.gestorUid===uid)?"Account + Gestor":c.accountUid===uid?"Account":"Gestor";
+  const squadsList=[...new Set(cls.map(c=>c.squad))];
+  const peopleVis=(C.people||[]).filter(pp=>(pp.nAtivo+pp.nAviso)>0&&(pp.squads||[]).some(x=>!hiddenSq.has(x))).sort((a,b)=>b.churnPct-a.churnPct||b.feeAviso-a.feeAviso);
+  $("ptitle").textContent="Churn · "+name;
+  $("topright").innerHTML=`<div class="stepbtns"><button class="btn" data-churn-back>← Voltar</button><button class="btn" data-churn-step="-1">↑ Anterior</button><button class="btn" data-churn-step="1">Próximo ↓</button></div>`;
+  const pRow=(c,dk)=>`<tr><td><a class="cname" href="https://app.clickup.com/t/${c.id}" target="_blank" rel="noopener">${esc(c.name)}</a></td><td><span class="sqtag">${esc(c.squad)}</span></td><td>${roleOf(c)}</td><td class="r fee"${c.grp==="aviso"?' style="color:var(--crit)"':''}>${BRL(c.fee)}</td>${dk?`<td class="r">${c[dk]?fmtBR(c[dk]):"—"}</td>`:''}</tr>`;
+  $("root").innerHTML=`<div class="content"><div class="col">
+    <div class="banner"><div class="bt"><h2>${esc(name)}</h2>
+      <p>Carteira de ${BRL(feeAtv+feeAvi)} · ${BRL(feeAvi)} em aviso — churn de <b>${pct}%</b>. ${squadsList.map(x=>`<span class="teamchip">${esc(x)}</span>`).join(" ")}</p>
+      <div class="cta"><button class="ghost" data-churn-back>← Todas as pessoas</button></div>
+    </div>${bigAva(pref||name)}</div>
+    <div class="kpis">
+      <div class="kpi"><div class="n">${BRL(feeAtv)}</div><div class="l">Fee ativo</div><div class="s">${ativos.length} clientes</div></div>
+      <div class="kpi"><div class="n" style="color:var(--crit)">${BRL(feeAvi)}</div><div class="l">Fee em aviso</div><div class="s">${aviso.length} clientes</div></div>
+      <div class="kpi"><div class="n" style="color:${ZONEC[zz]}">${pct}%</div><div class="l">Churn (carteira)</div><div class="s"><span class="zbadge ${zz}">${ZONEL[zz]}</span></div></div>
+      <div class="kpi"><div class="n">${BRL(saidas.reduce((x,c)=>x+c.fee,0))}</div><div class="l">Saídas no período</div><div class="s">${saidas.length} cliente(s)</div></div>
+    </div>
+    <div class="card"><div class="card-h"><h3>Atingimento de meta — ${esc(name)}</h3><div class="r">churn ${pct}% · meta ≤ ${m.meta}% · super ≤ ${m.sup}%</div></div>
+      <div class="pad"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px"><b style="font-family:var(--display);font-size:30px;color:${ZONEC[zz]}">${pct}%</b><span class="zbadge ${zz}">${ZONEL[zz]}</span></div>${attainBar(pct,m,true)}<div style="height:26px"></div>
+        <div class="note">Carteira consolidada como <b>Account</b> e <b>Gestor de Tráfego</b>. Cada cliente conta na carteira do seu Account e do seu Gestor.</div></div></div>
+    <div class="card"><div class="card-h"><h3>Clientes em aviso</h3><div class="r">${aviso.length} · ${BRL(feeAvi)}</div></div>
+      ${aviso.length?`<div class="tblwrap"><table class="ctable"><thead><tr><th>Cliente</th><th>Squad</th><th>Papel</th><th class="r">Fee</th><th class="r">Aviso</th></tr></thead><tbody>${aviso.map(c=>pRow(c,"aviso")).join("")}</tbody></table></div>`:'<div class="empty">Nenhum cliente em aviso 🎉</div>'}</div>
+    <div class="card"><div class="card-h"><h3>Clientes ativos</h3><div class="r">${ativos.length} · ${BRL(feeAtv)}</div></div>
+      ${ativos.length?`<div class="tblwrap"><table class="ctable"><thead><tr><th>Cliente</th><th>Squad</th><th>Papel</th><th class="r">Fee</th></tr></thead><tbody>${ativos.map(c=>pRow(c,null)).join("")}</tbody></table></div>`:'<div class="empty">—</div>'}</div>
+    <div class="card"><div class="card-h"><h3>Saídas no período</h3><div class="r">${fmtBR(dFrom)} → ${fmtBR(dTo)} · ${saidas.length}</div></div>
+      ${saidas.length?`<div class="tblwrap"><table class="ctable"><thead><tr><th>Cliente</th><th>Squad</th><th>Papel</th><th class="r">Fee</th><th class="r">Saída</th></tr></thead><tbody>${saidas.map(c=>pRow(c,"churnDate")).join("")}</tbody></table></div>`:'<div class="empty">Nenhuma saída nesse período.</div>'}</div>
+  </div>
+  <div class="col"><div class="acard"><h3>Pessoas</h3><p class="sub">${peopleVis.length} · clique para abrir</p>
+    <div class="plist">${peopleVis.map(x=>{const xz=zoneOf(x.churnPct,m);return `<button class="pitem" data-churn-open="pp:${x.uid}" aria-selected="${x.uid===uid}">
+      ${avaChurn(x)}
+      <span class="pn"><b>${esc(x.name||"—")}</b><span>${(x.squads||[]).join(", ")||"—"}</span></span>
+      <span class="chipn" style="color:${ZONEC[xz]}">${x.churnPct}<span style="font-size:9px">%</span></span></button>`;}).join("")}</div></div></div></div>`;
+}
+
+function churnStep(d){
+  const C=MODEL.churn||{}, m=metas(), hiddenSq=new Set(m.hidden||[]);
+  if(churnView.slice(0,3)==="sq:"){
+    const list=(C.squads||[]).filter(s=>s.squad!=="—"&&!hiddenSq.has(s.squad));
+    const i=list.findIndex(s=>s.squad===churnView.slice(3));
+    if(i>=0&&list.length)churnView="sq:"+list[(i+d+list.length)%list.length].squad;
+  }else if(churnView.slice(0,3)==="pp:"){
+    const list=(C.people||[]).filter(pp=>(pp.nAtivo+pp.nAviso)>0&&(pp.squads||[]).some(s=>!hiddenSq.has(s))).sort((a,b)=>b.churnPct-a.churnPct||b.feeAviso-a.feeAviso);
+    const uid=+churnView.slice(3), i=list.findIndex(pp=>pp.uid===uid);
+    if(i>=0&&list.length)churnView="pp:"+list[(i+d+list.length)%list.length].uid;
+  }
+  render();window.scrollTo({top:0});
 }
 
 /* ---------------- TIMES & METAS ---------------- */
@@ -786,9 +911,12 @@ function render(){
 }
 // events
 document.addEventListener("click",e=>{
-  const nav=e.target.closest(".nav"); if(nav){page=nav.dataset.page;render();window.scrollTo({top:0});return;}
+  const nav=e.target.closest(".nav"); if(nav){page=nav.dataset.page;churnView="overview";render();window.scrollTo({top:0});return;}
   const tf=e.target.closest("#tfilter button"); if(tf){team=tf.dataset.team;render();return;}
   const pg=e.target.closest("[data-page-go]"); if(pg){page=pg.dataset.pageGo;render();window.scrollTo({top:0});return;}
+  const cop=e.target.closest("[data-churn-open]"); if(cop){churnView=cop.dataset.churnOpen;page="churn";render();window.scrollTo({top:0});return;}
+  const cbk=e.target.closest("[data-churn-back]"); if(cbk){churnView="overview";render();window.scrollTo({top:0});return;}
+  const cst=e.target.closest("[data-churn-step]"); if(cst){churnStep(+cst.dataset.churnStep);return;}
   const op=e.target.closest("[data-open]"); if(op){selUid=+op.dataset.open;page="person";render();window.scrollTo({top:0});return;}
   const pi=e.target.closest(".pitem"); if(pi){selUid=+pi.dataset.uid;render();window.scrollTo({top:0});return;}
   const st=e.target.closest("[data-step]"); if(st){const L=membersInTeam();const i=L.findIndex(m=>m.uid===selUid);selUid=L[(i+ +st.dataset.step+L.length)%L.length].uid;render();window.scrollTo({top:0});return;}

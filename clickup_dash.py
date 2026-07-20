@@ -90,7 +90,9 @@ CF_SAIDA   = "6baa81c3-bd42-4d9e-974a-2fde4d015bfd"   # date
 # Squad é o MESMO campo (CF_SQUAD). O valor vem como orderindex (int) do dropdown:
 SQUAD_ORDER = {0: "ADFORCE", 1: "G.O.A.T", 2: "BULLS", 3: "VALHALLA",
                4: "E-SCALE", 5: "COMERCIAL", 6: "FENIX", 7: "BACKOFFICE"}
-SQUAD_ALL = ["ADFORCE", "G.O.A.T", "BULLS", "VALHALLA", "E-SCALE", "COMERCIAL", "FENIX", "BACKOFFICE"]
+# Squads fora do controle de churn (excluídos de totais, squads, pessoas e clientes).
+EXCLUDE_SQUADS = {"VALHALLA"}
+SQUAD_ALL = ["ADFORCE", "G.O.A.T", "BULLS", "E-SCALE", "COMERCIAL", "FENIX", "BACKOFFICE"]
 # Situação do cliente (status da tarefa) → grupo de churn:
 ST_ATIVO   = {"ativo", "inadimplente", "pendência adm"}          # carteira ativa (base)
 ST_ONBOARD = {"processo de entrada", "aguardando inicio"}        # entrando (ainda não na base)
@@ -422,6 +424,8 @@ def build_churn(empresas):
         st = (t.get("status") or {}).get("status", "").lower()
         fee = _cf_currency(t, CF_FEE)
         squad = _cf_squad(t) or "—"
+        if squad in EXCLUDE_SQUADS:      # squad fora da análise de churn (ex.: VALHALLA)
+            continue
         acc = _cf_users(t, CF_ACCOUNT)
         ges = _cf_users(t, CF_GESTOR)
         grp = ("ativo" if st in ST_ATIVO else "aviso" if st in ST_AVISO
