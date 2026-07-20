@@ -239,6 +239,10 @@ h1,h2,.brand b,.card-h h3,.acard h3,.stat .n,.donut .c b,.banner h2{font-family:
 .cbtn:hover{color:var(--ink);border-color:var(--line-2)}
 .cbtn[aria-pressed="true"]{background:linear-gradient(135deg,var(--gold),var(--magenta));color:#fff;border-color:transparent}
 .cbase{display:inline-flex;gap:4px;align-items:center;font-size:11.5px;color:var(--muted);font-weight:700}
+.cscope{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:800;color:var(--gold-2);background:var(--gold-soft);border:1px solid transparent;border-radius:9px;padding:6px 8px 6px 12px;margin-right:2px}
+:root[data-theme="dark"] .cscope{color:var(--gold)}
+.cscope .cx{border:0;background:transparent;color:inherit;cursor:pointer;font-weight:800;font-size:13px;line-height:1;padding:0 2px;opacity:.8}
+.cscope .cx:hover{opacity:1}
 .hmatrix{width:100%;border-collapse:collapse;font-size:12px}
 .hmatrix th,.hmatrix td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
 .hmatrix th:first-child,.hmatrix td:first-child{text-align:left;font-weight:800;position:sticky;left:0;background:var(--panel)}
@@ -353,7 +357,8 @@ const MEM = {}; MODEL.members.forEach(m=>MEM[m.uid]=m);
 const PPBYID = {}; (MODEL.postpones||[]).forEach(p=>{PPBYID[p.id]=p;});
 const HKEY="clk_hidden_v1";
 let page="overview", team="all", selUid=MODEL.members[0]?.uid, dFrom=MODEL.window.to, dTo=MODEL.window.to;  // abre em "Hoje"
-let churnView="overview";  // navegação do churn: "overview" | "history" | "projection" | "bonus" | "sq:NOME" | "pp:UID"
+let churnScope="all";      // onde estou no churn: "all" | "sq:NOME" | "pp:UID"
+let churnTab="overview";   // qual aba: "overview" | "history" | "projection" | "bonus" | "insights"
 let churnBase="fee";       // base de cálculo: "fee" | "var" (Fee + Variável)
 let churnYear="all";       // filtro do histórico: "all" | "2025" | "2026" | ...
 let churnPmYear=null;      // ano exibido no filtro de meses do churn (default: ano atual)
@@ -699,12 +704,14 @@ function importCfg(file){const r=new FileReader();r.onload=()=>{try{const c=JSON
 
 function renderChurn(){
   const C=MODEL.churn||{squads:[],people:[],clients:[],totals:{}}, m=metas(), hiddenSq=new Set(m.hidden||[]);
-  if(churnView.slice(0,3)==="sq:")return renderChurnSquad(churnView.slice(3),C,m,hiddenSq);
-  if(churnView.slice(0,3)==="pp:")return renderChurnPerson(+churnView.slice(3),C,m,hiddenSq);
-  if(churnView==="history")return renderChurnHistory(C,m);
-  if(churnView==="projection")return renderChurnProjection(C,m,hiddenSq);
-  if(churnView==="bonus")return renderChurnBonus(C,m,hiddenSq);
-  if(churnView==="insights")return renderChurnInsights(C,m,hiddenSq);
+  if(churnTab!=="overview"){
+    if(churnTab==="history")return renderChurnHistory(C,m,churnScope);
+    if(churnTab==="projection")return renderChurnProjection(C,m,hiddenSq,churnScope);
+    if(churnTab==="bonus")return renderChurnBonus(C,m,hiddenSq,churnScope);
+    if(churnTab==="insights")return renderChurnInsights(C,m,hiddenSq,churnScope);
+  }
+  if(churnScope.slice(0,3)==="sq:")return renderChurnSquad(churnScope.slice(3),C,m,hiddenSq);
+  if(churnScope.slice(0,3)==="pp:")return renderChurnPerson(+churnScope.slice(3),C,m,hiddenSq);
   $("ptitle").textContent="Controle de churn";
   $("topright").innerHTML=`<div class="stepbtns"><button class="btn" data-export-cfg>⭳ Exportar</button><button class="btn" data-import-cfg>⭱ Importar</button></div>`;
   const useVar=churnBase==="var";
@@ -728,7 +735,7 @@ function renderChurn(){
     <div class="sqpct" style="color:${ZONEC[zz]}">${CP(s)}<span>%</span></div></div>`;};
 
   $("root").innerHTML=`<div class="col">
-    ${churnNav('overview')}
+    ${churnNav()}
     <div class="banner"><div class="bt">
       <h2>Controle de churn — agência</h2>
       <p>${BRL(tAtv)} de ${useVar?'fee + variável':'fee ativo'} sob gestão · ${BRL(tAvi)} em aviso (${nAviso} cliente(s)) — churn de <b>${tPct}%</b> do faturamento. Meta ≤ ${m.meta}% · super meta ≤ ${m.sup}%.</p>
@@ -792,7 +799,7 @@ function squadInitial(s){return esc(((s||"?").trim()[0]||"?").toUpperCase());}
 function renderChurnSquad(name,C,m,hiddenSq){
   const squadsVis=(C.squads||[]).filter(s=>s.squad!=="—"&&!hiddenSq.has(s.squad));
   const s=squadsVis.find(x=>x.squad===name)||(C.squads||[]).find(x=>x.squad===name);
-  if(!s){churnView="overview";return renderChurn();}
+  if(!s){churnScope="all";churnTab="overview";return renderChurn();}
   const cls=(C.clients||[]).filter(c=>c.squad===name);
   const ativos=cls.filter(c=>c.grp==="ativo").sort((a,b)=>b.fee-a.fee);
   const aviso=cls.filter(c=>c.grp==="aviso").sort((a,b)=>b.fee-a.fee);
@@ -810,7 +817,7 @@ function renderChurnSquad(name,C,m,hiddenSq){
   $("topright").innerHTML=`<div class="stepbtns"><button class="btn" data-churn-back>← Voltar</button><button class="btn" data-churn-step="-1">↑ Squad ant.</button><button class="btn" data-churn-step="1">Próx. squad ↓</button></div>`;
   const vr=s.feeAtivo>0?(s.variavel||0)/s.feeAtivo:0;   // variável do último mês, rateada por fee
   const cRow=(c,dk)=>`<tr><td><a class="cname" href="https://app.clickup.com/t/${c.id}" target="_blank" rel="noopener">${esc(c.name)}</a></td><td>${esc(c.account||"—")}</td><td>${esc(c.gestor||"—")}</td><td class="r fee"${c.grp==="aviso"?' style="color:var(--crit)"':''}>${BRL(c.fee)}</td><td class="r fee" style="color:var(--gold-2)">${BRL(c.fee*vr)}</td><td class="r fee">${BRL(c.fee*(1+vr))}</td>${dk?`<td class="r">${c[dk]?fmtBR(c[dk]):"—"}</td>`:''}</tr>`;
-  $("root").innerHTML=`${churnNav('overview',false)}<div class="content"><div class="col">
+  $("root").innerHTML=`${churnNav('Squad: '+name)}<div class="content"><div class="col">
     <div class="banner"><div class="bt"><h2>${esc(name)}</h2>
       <p>${BRL(s.feeAtivo)} de fee ativo · ${BRL(s.feeAviso)} em aviso (${s.nAviso} cliente(s)) — churn de <b>${s.churnPct}%</b>. Meta ≤ ${m.meta}% · super ≤ ${m.sup}%.</p>
       <div class="cta"><button class="ghost" data-churn-back>← Todos os squads</button></div>
@@ -851,7 +858,7 @@ function renderChurnPerson(uid,C,m,hiddenSq){
   const PBYU={};(C.people||[]).forEach(p=>PBYU[p.uid]=p);
   const pref=PBYU[uid];
   const cls=(C.clients||[]).filter(c=>(c.accountUid===uid||c.gestorUid===uid)&&!hiddenSq.has(c.squad));
-  if(!pref&&!cls.length){churnView="overview";return renderChurn();}
+  if(!pref&&!cls.length){churnScope="all";churnTab="overview";return renderChurn();}
   const name=(pref&&pref.name)||(cls[0]&&(cls[0].accountUid===uid?cls[0].account:cls[0].gestor))||"—";
   const ativos=cls.filter(c=>c.grp==="ativo").sort((a,b)=>b.fee-a.fee);
   const aviso=cls.filter(c=>c.grp==="aviso").sort((a,b)=>b.fee-a.fee);
@@ -869,7 +876,7 @@ function renderChurnPerson(uid,C,m,hiddenSq){
   $("ptitle").textContent="Churn · "+name;
   $("topright").innerHTML=`<div class="stepbtns"><button class="btn" data-churn-back>← Voltar</button><button class="btn" data-churn-step="-1">↑ Anterior</button><button class="btn" data-churn-step="1">Próximo ↓</button></div>`;
   const pRow=(c,dk)=>{const r=rOf(c);return `<tr><td><a class="cname" href="https://app.clickup.com/t/${c.id}" target="_blank" rel="noopener">${esc(c.name)}</a></td><td><span class="sqtag">${esc(c.squad)}</span></td><td>${roleOf(c)}</td><td class="r fee"${c.grp==="aviso"?' style="color:var(--crit)"':''}>${BRL(c.fee)}</td><td class="r fee" style="color:var(--gold-2)">${BRL(c.fee*r)}</td><td class="r fee">${BRL(c.fee*(1+r))}</td>${dk?`<td class="r">${c[dk]?fmtBR(c[dk]):"—"}</td>`:''}</tr>`;};
-  $("root").innerHTML=`${churnNav('overview',false)}<div class="content"><div class="col">
+  $("root").innerHTML=`${churnNav('Pessoa: '+name)}<div class="content"><div class="col">
     <div class="banner"><div class="bt"><h2>${esc(name)}</h2>
       <p>Carteira de ${BRL(feeAtv+feeAvi)} · ${BRL(feeAvi)} em aviso — churn de <b>${pct}%</b>. ${squadsList.map(x=>`<span class="teamchip">${esc(x)}</span>`).join(" ")}</p>
       <div class="cta"><button class="ghost" data-churn-back>← Todas as pessoas</button></div>
@@ -906,14 +913,14 @@ function renderChurnPerson(uid,C,m,hiddenSq){
 
 function churnStep(d){
   const C=MODEL.churn||{}, m=metas(), hiddenSq=new Set(m.hidden||[]);
-  if(churnView.slice(0,3)==="sq:"){
+  if(churnScope.slice(0,3)==="sq:"){
     const list=(C.squads||[]).filter(s=>s.squad!=="—"&&!hiddenSq.has(s.squad));
-    const i=list.findIndex(s=>s.squad===churnView.slice(3));
-    if(i>=0&&list.length)churnView="sq:"+list[(i+d+list.length)%list.length].squad;
-  }else if(churnView.slice(0,3)==="pp:"){
+    const i=list.findIndex(s=>s.squad===churnScope.slice(3));
+    if(i>=0&&list.length)churnScope="sq:"+list[(i+d+list.length)%list.length].squad;
+  }else if(churnScope.slice(0,3)==="pp:"){
     const list=(C.people||[]).filter(pp=>(pp.nAtivo+pp.nAviso)>0&&(pp.squads||[]).some(s=>!hiddenSq.has(s))).sort((a,b)=>b.churnPct-a.churnPct||b.feeAviso-a.feeAviso);
-    const uid=+churnView.slice(3), i=list.findIndex(pp=>pp.uid===uid);
-    if(i>=0&&list.length)churnView="pp:"+list[(i+d+list.length)%list.length].uid;
+    const uid=+churnScope.slice(3), i=list.findIndex(pp=>pp.uid===uid);
+    if(i>=0&&list.length)churnScope="pp:"+list[(i+d+list.length)%list.length].uid;
   }
   render();window.scrollTo({top:0});
 }
@@ -921,51 +928,67 @@ function churnStep(d){
 /* ---------------- CHURN · sub-navegação + Histórico / Projeção / Bonificação ---------------- */
 const MLBL=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
 const monthLbl=k=>{const a=k.split('-');return MLBL[+a[1]-1]+'/'+a[0].slice(2);};
-function churnNav(active,showBase){
-  const T=(k,l)=>`<button class="cbtn" data-churn-open="${k}" aria-pressed="${active===k}">${l}</button>`;
-  const base=(showBase===false)?'':`<span style="flex:1"></span><span class="cbase">Base:</span>
+function scopeLabel(scope,C){
+  if(scope.slice(0,3)==="sq:")return "Squad: "+scope.slice(3);
+  if(scope.slice(0,3)==="pp:"){const p=(C.people||[]).find(x=>x.uid===+scope.slice(3));return "Pessoa: "+((p&&p.name)||"—");}
+  return "";
+}
+function churnNav(label){
+  const T=(k,l)=>`<button class="cbtn" data-churn-tab="${k}" aria-pressed="${churnTab===k}">${l}</button>`;
+  const showBase=(churnTab==="insights")||(churnTab==="overview"&&churnScope==="all");
+  const base=!showBase?'':`<span style="flex:1"></span><span class="cbase">Base:</span>
     <button class="cbtn" data-churn-base="fee" aria-pressed="${churnBase==='fee'}">Fee</button>
     <button class="cbtn" data-churn-base="var" aria-pressed="${churnBase==='var'}">Fee + Variável</button>`;
-  return `<div class="cnav">${T('overview','Visão geral')}${T('history','Histórico')}${T('projection','Projeção')}${T('bonus','Bonificação')}${T('insights','Insights')}${base}</div>`;
+  const chip=label?`<span class="cscope">${esc(label)}<button class="cx" data-churn-back title="Ver a agência toda">✕</button></span>`:'';
+  return `<div class="cnav">${chip}${T('overview','Visão geral')}${T('history','Histórico')}${T('projection','Projeção')}${T('bonus','Bonificação')}${T('insights','Insights')}${base}</div>`;
 }
 
-function renderChurnHistory(C,m){
+function renderChurnHistory(C,m,scope){
   $("ptitle").textContent="Churn · Histórico";
   $("topright").innerHTML=`<div class="stepbtns"><button class="btn" data-churn-back>← Voltar</button></div>`;
   const H=MODEL.churnHistory||{}; const allMeses=Object.keys(H.meses||{}).sort();
   const anos=[...new Set(allMeses.map(k=>k.slice(0,4)))];
   const meses=churnYear==="all"?allMeses:allMeses.filter(k=>k.startsWith(churnYear));
-  const squads=(H.squads||["TOTAL"]);
+  const allSquads=(H.squads||["TOTAL"]);
+  // escopo
+  let squads=allSquads, chartSquad="TOTAL", tit="agência (TOTAL)", scopedMissing=false;
+  if(scope.slice(0,3)==="sq:"){const sn=scope.slice(3);tit=sn;
+    if(allSquads.includes(sn)){squads=[sn,"TOTAL"];chartSquad=sn;}else{squads=["TOTAL"];chartSquad="TOTAL";scopedMissing=true;}}
+  else if(scope.slice(0,3)==="pp:"){const p=(C.people||[]).find(x=>x.uid===+scope.slice(3));const ps=new Set((p&&p.squads)||[]);
+    const ins=allSquads.filter(s=>ps.has(s));squads=ins.concat(["TOTAL"]);chartSquad=ins[0]||"TOTAL";tit=(p&&p.name)||"pessoa";if(!ins.length)scopedMissing=true;}
   const zc=v=>v==null?'var(--muted)':v<=m.sup?'var(--good)':v<=m.meta?'var(--high)':'var(--crit)';
   const cell=v=>v==null?'<span style="color:var(--muted)">—</span>':`<span class="hcell" style="background:color-mix(in srgb,${zc(v)} 16%,transparent);color:${zc(v)}">${v.toFixed(1).replace('.',',')}%</span>`;
-  const batidas=s=>{let hit=0,tot=0;meses.forEach(k=>{const v=H.meses[k][s];if(v!=null){tot++;if(v<=m.meta)hit++;}});return tot?hit+'/'+tot:'—';};
-  const totVals=meses.map(k=>[k,H.meses[k]?H.meses[k]['TOTAL']:null]).filter(([,v])=>v!=null);
+  const batidas=s=>{let hit=0,tot=0;meses.forEach(k=>{const v=H.meses[k]?H.meses[k][s]:null;if(v!=null){tot++;if(v<=m.meta)hit++;}});return tot?hit+'/'+tot:'—';};
+  const totVals=meses.map(k=>[k,H.meses[k]?H.meses[k][chartSquad]:null]).filter(([,v])=>v!=null);
   const maxV=Math.max(m.meta*1.5,...totVals.map(([,v])=>v),8);
   const yrBtn=(y,l)=>`<button class="cbtn" data-churn-year="${y}" aria-pressed="${churnYear===y}">${l}</button>`;
   const hasData=meses.length>0;
   $("root").innerHTML=`<div class="col">
-    ${churnNav('history',false)}
-    <div class="banner"><div class="bt"><h2>Histórico de churn</h2>
-      <p>Churn % por squad, mês a mês — importado da planilha base. Verde ≤ super (${m.sup}%) · amarelo ≤ meta (${m.meta}%) · vermelho acima.</p>
+    ${churnNav(scopeLabel(scope,C))}
+    <div class="banner"><div class="bt"><h2>Histórico de churn${scope!=="all"?' — '+esc(tit):''}</h2>
+      <p>Churn % por mês — importado da planilha base. Verde ≤ super (${m.sup}%) · amarelo ≤ meta (${m.meta}%) · vermelho acima.</p>
       <div class="cta" style="gap:6px">${yrBtn('all','Todos')}${anos.map(y=>yrBtn(y,y)).join('')}</div></div><div class="avatar">📚</div></div>
-    ${!hasData?'<div class="note">Sem histórico importado ainda. (No preview, os meses vêm da planilha base.)</div>':`
-    <div class="card"><div class="card-h"><h3>Evolução — agência (TOTAL)</h3><div class="r">${monthLbl(meses[0])} → ${monthLbl(meses[meses.length-1])}</div></div>
+    ${scopedMissing?`<div class="note">Este squad não consta no histórico importado da planilha (só ADFORCE, G.O.A.T, BULLS e E-SCALE têm série histórica). Mostrando o TOTAL da agência como referência.</div>`:''}
+    ${!hasData?'<div class="note">Sem histórico importado ainda.</div>':`
+    <div class="card"><div class="card-h"><h3>Evolução — ${esc(chartSquad==="TOTAL"?"agência (TOTAL)":tit)}</h3><div class="r">${monthLbl(meses[0])} → ${monthLbl(meses[meses.length-1])}</div></div>
       <div class="pad"><div class="chart" style="min-height:150px">${totVals.map(([k,v])=>`<div class="colwrap"><div class="coln">${v.toFixed(1).replace('.',',')}</div><div class="bar-col" style="height:${Math.max(4,v/maxV*130)}px;background:transparent"><div class="seg" style="flex:1;background:${zc(v)}"></div></div><div class="collbl">${monthLbl(k)}</div></div>`).join('')}</div>
-        <div class="note">Cada barra é o churn total da agência no mês. Cor pela zona de meta (super ${m.sup}% / meta ${m.meta}%).</div></div></div>
+        <div class="note">Cada barra é o churn no mês. Cor pela zona de meta (super ${m.sup}% / meta ${m.meta}%).</div></div></div>
     <div class="card"><div class="card-h"><h3>Matriz churn % — squad × mês</h3><div class="r">meta batidas na última coluna</div></div>
       <div class="tblwrap"><table class="hmatrix"><thead><tr><th>Squad</th>${meses.map(k=>`<th>${monthLbl(k)}</th>`).join('')}<th>Batidas</th></tr></thead>
       <tbody>${squads.map(s=>`<tr><td>${esc(s)}</td>${meses.map(k=>`<td>${cell(H.meses[k]?H.meses[k][s]:null)}</td>`).join('')}<td><b>${batidas(s)}</b></td></tr>`).join('')}</tbody></table></div></div>`}
   </div>`;
 }
 
-function renderChurnProjection(C,m,hiddenSq){
+function renderChurnProjection(C,m,hiddenSq,scope){
   $("ptitle").textContent="Churn · Projeção";
   $("topright").innerHTML=`<div class="stepbtns"><button class="btn" data-churn-back>← Voltar</button></div>`;
-  const proj=(C.projection||[]).map(p=>{const cl=(p.clients||[]).filter(c=>!hiddenSq.has(c.squad));return {mes:p.mes,clients:cl,n:cl.length,fee:cl.reduce((s,c)=>s+c.fee,0)};}).filter(p=>p.n);
+  const sqName=scope.slice(0,3)==="sq:"?scope.slice(3):null, uid=scope.slice(0,3)==="pp:"?+scope.slice(3):null;
+  const inScope=c=>!hiddenSq.has(c.squad)&&(!sqName||c.squad===sqName)&&(uid==null||c.accountUid===uid||c.gestorUid===uid);
+  const proj=(C.projection||[]).map(p=>{const cl=(p.clients||[]).filter(inScope);return {mes:p.mes,clients:cl,n:cl.length,fee:cl.reduce((s,c)=>s+c.fee,0)};}).filter(p=>p.n);
   const totalN=proj.reduce((s,p)=>s+p.n,0), totalFee=proj.reduce((s,p)=>s+p.fee,0);
   $("root").innerHTML=`<div class="col">
-    ${churnNav('projection',false)}
-    <div class="banner"><div class="bt"><h2>Projeção de churn</h2>
+    ${churnNav(scopeLabel(scope,C))}
+    <div class="banner"><div class="bt"><h2>Projeção de churn${scope!=="all"?' — '+esc(scopeLabel(scope,C).replace(/^(Squad|Pessoa): /,'')):''}</h2>
       <p>Cliente em <b>aviso</b> hoje sai ~30 dias depois. Projeção: <b>${totalN}</b> cliente(s) · <b>${BRL(totalFee)}</b> saindo nos próximos meses.</p></div><div class="avatar">📅</div></div>
     <div class="kpis">${proj.map(p=>`<div class="kpi"><div class="n" style="color:var(--crit)">${p.n}</div><div class="l">Churn projetado · ${monthLbl(p.mes)}</div><div class="s">${BRL(p.fee)}</div></div>`).join('')||'<div class="kpi"><div class="n">0</div><div class="l">Nada projetado</div><div class="s">Sem clientes em aviso</div></div>'}</div>
     ${proj.map(p=>`<div class="card"><div class="card-h"><h3>Projeção ${monthLbl(p.mes)}</h3><div class="r">${p.n} cliente(s) · ${BRL(p.fee)}</div></div>
@@ -975,12 +998,14 @@ function renderChurnProjection(C,m,hiddenSq){
   </div>`;
 }
 
-function renderChurnBonus(C,m,hiddenSq){
+function renderChurnBonus(C,m,hiddenSq,scope){
   const FAV=x=>(x.feeAtivoVar!=null?x.feeAtivoVar:x.feeAtivo);
   const CPV=x=>(x.churnPctVar!=null?x.churnPctVar:x.churnPct);
   $("ptitle").textContent="Churn · Bonificação";
   $("topright").innerHTML=`<div class="stepbtns"><button class="btn" data-churn-back>← Voltar</button></div>`;
-  const squads=(C.squads||[]).filter(s=>s.squad!=="—"&&!hiddenSq.has(s.squad));
+  const sqName=scope.slice(0,3)==="sq:"?scope.slice(3):null, uid=scope.slice(0,3)==="pp:"?+scope.slice(3):null;
+  const pPerson=uid!=null?(C.people||[]).find(x=>x.uid===uid):null, pSquads=pPerson?new Set(pPerson.squads||[]):null;
+  const squads=(C.squads||[]).filter(s=>s.squad!=="—"&&!hiddenSq.has(s.squad)&&(!sqName||s.squad===sqName)&&(!pSquads||pSquads.has(s.squad)));
   const AC=0.65,GE=0.35;
   const bonusPct=cp=>cp<=m.sup?2:cp<=m.meta?1:0;   // super meta ⇒ 2% · meta ⇒ 1% · fora ⇒ 0
   const rows=squads.map(s=>{const cp=CPV(s),bp=bonusPct(cp),base=FAV(s),pool=base*bp/100;
@@ -991,7 +1016,7 @@ function renderChurnBonus(C,m,hiddenSq){
   const zoneBySquad={}; squads.forEach(s=>zoneBySquad[s.squad]=bonusPct(CPV(s)));
   const AVA={}; (C.people||[]).forEach(p=>AVA[p.uid]=p.avatar);
   const PB={};
-  (C.clients||[]).filter(c=>c.grp==="ativo"&&!hiddenSq.has(c.squad)).forEach(c=>{
+  (C.clients||[]).filter(c=>c.grp==="ativo"&&!hiddenSq.has(c.squad)&&(!sqName||c.squad===sqName)&&(uid==null||c.accountUid===uid||c.gestorUid===uid)).forEach(c=>{
     const base=c.fee*(1+(ratioBySquad[c.squad]||0));
     const add=(uid,name,key)=>{if(!uid)return;const p=PB[uid]||(PB[uid]={uid,name,avatar:AVA[uid],accBase:0,gesBase:0,squads:new Set()});p[key]+=base;p.squads.add(c.squad);};
     add(c.accountUid,c.account,"accBase"); add(c.gestorUid,c.gestor,"gesBase");
@@ -1003,7 +1028,7 @@ function renderChurnBonus(C,m,hiddenSq){
   }).filter(p=>p.carteira>0).sort((a,b)=>b.sup-a.sup);
   const totMeta=ppl.reduce((a,p)=>a+p.meta,0), totSup=ppl.reduce((a,p)=>a+p.sup,0);
   $("root").innerHTML=`<div class="col">
-    ${churnNav('bonus',false)}
+    ${churnNav(scopeLabel(scope,C))}
     <div class="banner"><div class="bt"><h2>Bonificação</h2>
       <p>Bônus = % do <b>Fee + Variável</b> da carteira: <b>super meta ⇒ 2%</b> · <b>meta ⇒ 1%</b> · acima ⇒ 0%. Account 65% / Gestor 35%.</p></div><div class="avatar">🏆</div></div>
 
@@ -1025,11 +1050,13 @@ function renderChurnBonus(C,m,hiddenSq){
   </div>`;
 }
 
-function renderChurnInsights(C,m,hiddenSq){
+function renderChurnInsights(C,m,hiddenSq,scope){
   $("ptitle").textContent="Churn · Insights";
   $("topright").innerHTML=`<div class="stepbtns"><button class="btn" data-churn-back>← Voltar</button></div>`;
-  const squads=(C.squads||[]).filter(s=>s.squad!=="—"&&!hiddenSq.has(s.squad));
-  const people=(C.people||[]).filter(p=>(p.nAtivo+p.nAviso)>0&&(p.squads||[]).some(s=>!hiddenSq.has(s)));
+  const sqName=scope.slice(0,3)==="sq:"?scope.slice(3):null, uid=scope.slice(0,3)==="pp:"?+scope.slice(3):null;
+  const pPerson=uid!=null?(C.people||[]).find(x=>x.uid===uid):null, pSquads=pPerson?new Set(pPerson.squads||[]):null;
+  const squads=(C.squads||[]).filter(s=>s.squad!=="—"&&!hiddenSq.has(s.squad)&&(!sqName||s.squad===sqName)&&(!pSquads||pSquads.has(s.squad)));
+  const people=(C.people||[]).filter(p=>(p.nAtivo+p.nAviso)>0&&(p.squads||[]).some(s=>!hiddenSq.has(s))&&(!sqName||(p.squads||[]).includes(sqName))&&(uid==null||p.uid===uid));
   const useVar=churnBase==="var";
   const CPV=x=>useVar&&x.churnPctVar!=null?x.churnPctVar:x.churnPct;   // respeita o toggle Fee/Fee+Variável
   const FAV=x=>useVar&&x.feeAtivoVar!=null?x.feeAtivoVar:x.feeAtivo;
@@ -1039,16 +1066,17 @@ function renderChurnInsights(C,m,hiddenSq){
   const nSuper=squads.filter(s=>CPV(s)<=m.sup).length, nMeta=squads.filter(s=>CPV(s)>m.sup&&CPV(s)<=m.meta).length, nFora=squads.filter(s=>CPV(s)>m.meta).length;
   const tAtv=squads.reduce((a,s)=>a+s.feeAtivo,0), tAvi=squads.reduce((a,s)=>a+s.feeAviso,0), tVar=squads.reduce((a,s)=>a+(s.variavel||0),0);
   const tPct=(tAtv+tVar+tAvi)?+(tAvi/(tAtv+tVar+tAvi)*100).toFixed(2):0;
-  const proj=(C.projection||[])[0];
+  const projList=(C.projection||[]).map(p=>{const cl=(p.clients||[]).filter(c=>!hiddenSq.has(c.squad)&&(!sqName||c.squad===sqName)&&(uid==null||c.accountUid===uid||c.gestorUid===uid));return {mes:p.mes,n:cl.length,fee:cl.reduce((s,c)=>s+c.fee,0)};}).filter(p=>p.n);
+  const proj=projList[0];
   const bigCart=[...people].sort((a,b)=>FAV(b)-FAV(a))[0];
-  const avisoBig=(C.clients||[]).filter(c=>c.grp==="aviso"&&!hiddenSq.has(c.squad)).sort((a,b)=>b.fee-a.fee)[0];
+  const avisoBig=(C.clients||[]).filter(c=>c.grp==="aviso"&&!hiddenSq.has(c.squad)&&(!sqName||c.squad===sqName)&&(uid==null||c.accountUid===uid||c.gestorUid===uid)).sort((a,b)=>b.fee-a.fee)[0];
   const bonusPot=squads.reduce((a,s)=>a+FAV(s)*0.02,0);   // se todos batessem super meta
   const rk=[...people].sort((a,b)=>CPV(a)-CPV(b)||FAV(b)-FAV(a));
   const medal=i=>i===0?"🥇":i===1?"🥈":i===2?"🥉":`<span style="color:var(--muted)">${i+1}º</span>`;
   const bySquadBest=squads.map(s=>{const ppl=people.filter(p=>(p.squads||[]).includes(s.squad)).sort((a,b)=>CPV(a)-CPV(b));return {s,best:ppl[0]};});
   const insight=(ic,val,lbl,color)=>`<div class="kpi"><div class="n" style="${color?`color:${color}`:''};font-size:20px">${ic} ${val}</div><div class="l">${lbl}</div></div>`;
   $("root").innerHTML=`<div class="col">
-    ${churnNav('insights')}
+    ${churnNav(scopeLabel(scope,C))}
     <div class="banner"><div class="bt"><h2>Insights & Ranking</h2>
       <p>Panorama do churn da agência: quem está batendo meta, melhores e piores squads, faturamento em risco e projeção. Base ${churnBase==="var"?'Fee + Variável':'Fee'}.</p></div><div class="avatar">💡</div></div>
     <div class="kpis">
@@ -1129,7 +1157,7 @@ function render(){
   const apnow=activePreset();
   [...$("periodpresets").children].forEach(x=>{if(x.dataset.preset!=null)x.setAttribute("aria-pressed",x.dataset.preset===apnow);});
   $("teamfilterwrap").style.display=(page==="overview"||page==="person")?"":"none";
-  const churnNoPeriod=(page==="churn"&&(churnView==="history"||churnView==="projection"||churnView==="bonus"));
+  const churnNoPeriod=(page==="churn"&&(churnTab==="history"||churnTab==="projection"||churnTab==="bonus"));
   $("periodbar").style.display=(page==="times"||churnNoPeriod)?"none":"";
   if(page==="overview")renderOverview();
   else if(page==="person")renderPerson();
@@ -1138,11 +1166,12 @@ function render(){
 }
 // events
 document.addEventListener("click",e=>{
-  const nav=e.target.closest(".nav"); if(nav){page=nav.dataset.page;churnView="overview";if(page==="churn"&&activePreset().slice(0,2)!=="m:")setPreset("m:"+MODEL.window.to.slice(0,7));render();window.scrollTo({top:0});return;}
+  const nav=e.target.closest(".nav"); if(nav){page=nav.dataset.page;churnScope="all";churnTab="overview";if(page==="churn"&&activePreset().slice(0,2)!=="m:")setPreset("m:"+MODEL.window.to.slice(0,7));render();window.scrollTo({top:0});return;}
   const tf=e.target.closest("#tfilter button"); if(tf){team=tf.dataset.team;render();return;}
   const pg=e.target.closest("[data-page-go]"); if(pg){page=pg.dataset.pageGo;render();window.scrollTo({top:0});return;}
-  const cop=e.target.closest("[data-churn-open]"); if(cop){churnView=cop.dataset.churnOpen;page="churn";render();window.scrollTo({top:0});return;}
-  const cbk=e.target.closest("[data-churn-back]"); if(cbk){churnView="overview";render();window.scrollTo({top:0});return;}
+  const ctab=e.target.closest("[data-churn-tab]"); if(ctab){churnTab=ctab.dataset.churnTab;page="churn";render();window.scrollTo({top:0});return;}
+  const cop=e.target.closest("[data-churn-open]"); if(cop){const v=cop.dataset.churnOpen;churnScope=(v==="overview"||v==="all")?"all":v;churnTab="overview";page="churn";render();window.scrollTo({top:0});return;}
+  const cbk=e.target.closest("[data-churn-back]"); if(cbk){churnScope="all";churnTab="overview";render();window.scrollTo({top:0});return;}
   const cst=e.target.closest("[data-churn-step]"); if(cst){churnStep(+cst.dataset.churnStep);return;}
   const cbs=e.target.closest("[data-churn-base]"); if(cbs){churnBase=cbs.dataset.churnBase;render();return;}
   const cyr=e.target.closest("[data-churn-year]"); if(cyr){churnYear=cyr.dataset.churnYear;render();return;}

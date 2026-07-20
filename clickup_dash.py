@@ -518,7 +518,9 @@ def build_churn(empresas, variavel=None):
             pr = projection.setdefault(key, {"mes": key, "n": 0, "fee": 0.0, "clients": []})
             pr["n"] += 1; pr["fee"] += c["fee"]
             pr["clients"].append({"name": c["name"], "squad": c["squad"], "fee": round(c["fee"], 2),
-                                  "churnEm": dt.isoformat()})
+                                  "churnEm": dt.isoformat(),
+                                  "account": c.get("account"), "accountUid": c.get("accountUid"),
+                                  "gestor": c.get("gestor"), "gestorUid": c.get("gestorUid")})
     projection = [dict(v, fee=round(v["fee"], 2)) for v in sorted(projection.values(), key=lambda x: x["mes"])]
 
     return {"totals": totals, "squads": squads, "people": ppl, "clients": clients,
