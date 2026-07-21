@@ -96,11 +96,10 @@ CF_SAIDA   = "6baa81c3-bd42-4d9e-974a-2fde4d015bfd"   # date
 # Squad é o MESMO campo (CF_SQUAD). O valor vem como orderindex (int) do dropdown:
 SQUAD_ORDER = {0: "ADFORCE", 1: "G.O.A.T", 2: "BULLS", 3: "VALHALLA",
                4: "E-SCALE", 5: "COMERCIAL", 6: "FENIX", 7: "BACKOFFICE"}
-# Squads fora do controle de churn (excluídos de totais, squads, pessoas e clientes).
-EXCLUDE_SQUADS = {"VALHALLA"}
-# Times fora do painel de TAREFAS (não do churn): não usam as listas da Operacional.
-EXCLUDE_TEAMS = {"COMERCIAL", "BACKOFFICE"}
-SQUAD_ALL = ["ADFORCE", "G.O.A.T", "BULLS", "E-SCALE", "COMERCIAL", "FENIX", "BACKOFFICE"]
+# Squads fora do painel INTEIRO (churn E tarefas): totais, squads, pessoas, clientes e times.
+# COMERCIAL e BACKOFFICE são de outros setores; VALHALLA foi descontinuado.
+EXCLUDE_SQUADS = {"VALHALLA", "COMERCIAL", "BACKOFFICE"}
+SQUAD_ALL = ["ADFORCE", "G.O.A.T", "BULLS", "E-SCALE", "FENIX"]
 # Situação do cliente (status da tarefa) → grupo de churn:
 ST_ATIVO   = {"ativo", "inadimplente", "pendência adm"}          # carteira ativa (base)
 ST_ONBOARD = {"processo de entrada", "aguardando inicio"}        # entrando (ainda não na base)
@@ -258,7 +257,7 @@ def squad_team(task):
     for f in task.get("custom_fields", []):
         if f.get("id") == CF_SQUAD and f.get("value") not in (None, ""):
             t = SQUAD_OPTION_TEAM.get(str(f["value"]))
-            return None if t in EXCLUDE_TEAMS else t
+            return None if t in EXCLUDE_SQUADS else t
     return None
 
 # Termos que aparecem em [COLCHETE] mas são TIPO de arte/etapa, não cliente.
@@ -626,7 +625,7 @@ def roster_from_empresas(empresas):
         if not is_company(t):
             continue
         squad = _cf_squad(t) or "—"
-        if squad == "—" or squad in EXCLUDE_SQUADS or squad in EXCLUDE_TEAMS:
+        if squad == "—" or squad in EXCLUDE_SQUADS:
             continue
         for cid, role in ((CF_ACCOUNT, "Account"), (CF_GESTOR, "Gestor de Tráfego")):
             for u in _cf_users(t, cid):

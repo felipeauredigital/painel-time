@@ -1388,7 +1388,7 @@ function showToast(msg){$("toastmsg").textContent=msg;$("toast").hidden=false;cl
 $("toastundo").addEventListener("click",()=>{if(window._last){unhide(window._last);window._last=null;$("toast").hidden=true;render();}});
 function buildTeamFilter(){
   const set=new Set(); MODEL.members.forEach(m=>mTeams(m).forEach(t=>set.add(t)));
-  const CANON=["ADFORCE","G.O.A.T","BULLS","E-SCALE","COMERCIAL","FENIX","BACKOFFICE"];
+  const CANON=["ADFORCE","G.O.A.T","BULLS","E-SCALE","FENIX"];
   const ordered=CANON.filter(t=>set.has(t)).concat([...set].filter(t=>!CANON.includes(t)).sort());
   const btn=(v,l)=>`<button data-team="${esc(v)}" aria-pressed="${team===v}">${esc(l)}</button>`;
   $("tfilter").innerHTML=btn("all","Todos")+ordered.map(t=>btn(t,t)).join("");
