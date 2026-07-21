@@ -757,18 +757,11 @@ def analyze(tasks, record=False):
 
     avatars = _load(os.path.join(DATA, "avatars.json"), {})
     postpones = aggregate_postponements()
-    # só aparece quem tem PENDÊNCIA ATUAL: tarefa em atraso, pra hoje, ou card mal cadastrado.
-    # Concluídas do histórico e adiamentos NÃO contam — senão gente sem trabalho atual (ou que já
-    # saiu da empresa) fica no painel só por ter concluído algo tempos atrás.
-    com_tarefa = set()
-    for x in overdue:      com_tarefa.add(x["uid"])
-    for x in today_tasks:  com_tarefa.add(x["uid"])
-    for x in malformed:
-        if x.get("uid"):   com_tarefa.add(x["uid"])
+    # roster = todos os Account/Gestor de projetos ATIVOS (+ curados). Ex-funcionário já não entra
+    # aqui, pois não é account/gestor de projeto ativo — então não filtramos por "ter tarefa".
     members = [{"uid": r["uid"], "name": r["name"], "team": r["team"], "teams": r["teams"],
                 "role": r["role"], "avatar": avatars.get(str(r["uid"]))}
-               for r in sorted(roster.values(), key=lambda x: x["order"])
-               if r["uid"] in com_tarefa]
+               for r in sorted(roster.values(), key=lambda x: x["order"])]
 
     # ---- controle de churn (lista Gestão de empresas) ----
     empresas = _load(os.path.join(DATA, "empresas.json"), [])
