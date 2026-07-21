@@ -87,6 +87,10 @@ SQUAD_OPTION_TEAM = {  # option_id -> time (squad) — usado p/ vincular a taref
     # VALHALLA (0f534b85-...) fica de fora do painel (mesmo critério do churn)
 }
 
+# ---- Roster dos times em TAREFAS: vem da lista "Gestão de Projetos" (não da de empresas) ----
+PROJETOS_LIST = "900702240138"                    # lista "Gestão de Projetos" (espaço Operacional)
+PROJ_INATIVO  = {"finalizado", "recisão", "recisao"}   # projeto encerrado: não define time (ex.: ADFORCE do Lucas)
+
 # ---- Controle de churn: lista "Gestão de empresas" e seus campos ----
 EMPRESAS_LIST = "223068147"
 CF_FEE     = "be8d6d21-be62-4605-a6ce-341464979dd3"   # currency BRL
@@ -617,12 +621,17 @@ def _order_teams(teams):
     """Ordena os times na ordem canônica dos squads (ADFORCE, G.O.A.T, ...)."""
     return [s for s in SQUAD_ALL if s in teams] + sorted(t for t in teams if t not in SQUAD_ALL)
 
-def roster_from_empresas(empresas):
-    """Deriva {uid: {"name","teams":set,"roles":set}} da lista de clientes:
-    cada Account/Gestor de um cliente entra no time (squad) daquele cliente."""
+def roster_from_projetos(tasks):
+    """Deriva {uid: {"name","teams":set,"roles":set}} da lista 'Gestão de Projetos':
+    para cada PROJETO ATIVO, quem está em Account/Gestor entra no time (squad) daquele projeto.
+    Projetos encerrados (finalizado/recisão) não contam — é por isso que o Lucas (Head), que só
+    tem projeto ADFORCE finalizado, não cai no ADFORCE."""
     r = {}
-    for t in empresas:
-        if not is_company(t):
+    for t in tasks:
+        if (t.get("list") or {}).get("id") != PROJETOS_LIST:
+            continue
+        st = ((t.get("status") or {}).get("status") or "").lower()
+        if st in PROJ_INATIVO:
             continue
         squad = _cf_squad(t) or "—"
         if squad == "—" or squad in EXCLUDE_SQUADS:
@@ -636,11 +645,12 @@ def roster_from_empresas(empresas):
                 e["roles"].add(role)
     return r
 
-def build_roster(empresas):
+def build_roster(tasks):
     """Monta o roster de Tarefas: os 14 membros curados (mantêm nome/função/time e ordem) +
-    todos os Account/Gestor de cada squad vindos da lista de clientes. Pessoas em mais de um
-    squad aparecem em cada um (campo 'teams'); 'team' é o time principal (p/ avatar/label)."""
-    derived = roster_from_empresas(empresas)
+    todos os Account/Gestor de cada squad vindos dos PROJETOS ATIVOS (lista Gestão de Projetos).
+    Pessoas em mais de um squad aparecem em cada um (campo 'teams'); 'team' é o principal (avatar/label).
+    Quem não tem tarefa é removido depois, no analyze."""
+    derived = roster_from_projetos(tasks)
     roster, order = {}, 0
     for u in MEMBER_ORDER:                     # 1) curados primeiro (preserva ordem e função)
         name, team, role = MEMBERS[u]
@@ -663,8 +673,7 @@ def build_roster(empresas):
 # ------------------------------------------------------------------ analyze
 def analyze(tasks, record=False):
     today = datetime.datetime.now(TZ).date()
-    empresas = _load(os.path.join(DATA, "empresas.json"), [])   # base p/ churn e p/ roster dos times
-    roster = build_roster(empresas)
+    roster = build_roster(tasks)   # times de Tarefas: Account/Gestor de cada projeto ATIVO (+ curados)
     roster_ids = set(roster)
     if record:
         record_postponements(tasks, today, roster_ids)   # registra adiamentos de prazo vs. rodada anterior
@@ -747,12 +756,23 @@ def analyze(tasks, record=False):
             if cd < min_day: min_day = cd
 
     avatars = _load(os.path.join(DATA, "avatars.json"), {})
+    postpones = aggregate_postponements()
+    # quem NÃO tem nenhuma tarefa (atraso/hoje/concluída/mal cadastrada) sai do painel — remove
+    # ex-funcionários e quem só constava na carteira. Adiamentos/criações são histórico e não contam
+    # como "ter tarefa" (uma tarefa ainda aberta já entra por atraso/hoje; concluída entra por done).
+    com_tarefa = set()
+    for x in overdue:      com_tarefa.add(x["uid"])
+    for x in today_tasks:  com_tarefa.add(x["uid"])
+    for x in done:         com_tarefa.add(x["uid"])
+    for x in malformed:
+        if x.get("uid"):   com_tarefa.add(x["uid"])
     members = [{"uid": r["uid"], "name": r["name"], "team": r["team"], "teams": r["teams"],
                 "role": r["role"], "avatar": avatars.get(str(r["uid"]))}
-               for r in sorted(roster.values(), key=lambda x: x["order"])]
-    postpones = aggregate_postponements()
+               for r in sorted(roster.values(), key=lambda x: x["order"])
+               if r["uid"] in com_tarefa]
 
-    # ---- controle de churn (lista Gestão de empresas) — empresas já carregada no topo ----
+    # ---- controle de churn (lista Gestão de empresas) ----
+    empresas = _load(os.path.join(DATA, "empresas.json"), [])
     # snapshot manual da planilha (histórico churn% por mês + variável do mês). Editáveis à mão.
     churn_history = _load(os.path.join(DATA, "churn_history.json"), {})
     variavel = _load(os.path.join(DATA, "churn_variavel.json"), {})
