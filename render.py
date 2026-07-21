@@ -710,8 +710,8 @@ function importCfg(file){const r=new FileReader();r.onload=()=>{try{const c=JSON
   showToast("Config importada.");render();}catch(e){alert("Arquivo de config inválido.");}};r.readAsText(file);}
 
 function renderChurn(){
-  pruneCommittedLanc();   // lançamentos já commitados saem do "pendente" p/ não contar em dobro
-  const C=applyPendingLanc(MODEL.churn||{squads:[],people:[],clients:[],totals:{}}), m=metas(), hiddenSq=new Set(m.hidden||[]);
+  // fonte de variável/reduções agora é a PLANILHA (já vem calculada no backend). Sem pending local.
+  const C=MODEL.churn||{squads:[],people:[],clients:[],totals:{}}, m=metas(), hiddenSq=new Set(m.hidden||[]);
   if(churnTab!=="overview"){
     if(churnTab==="history")return renderChurnHistory(C,m,churnScope);
     if(churnTab==="projection")return renderChurnProjection(C,m,hiddenSq,churnScope);
@@ -1044,23 +1044,30 @@ function renderChurnBonus(C,m,hiddenSq,scope){
   const pPerson=uid!=null?(C.people||[]).find(x=>x.uid===uid):null, pSquads=pPerson?new Set(pPerson.squads||[]):null;
   const squads=(C.squads||[]).filter(s=>s.squad!=="—"&&!hiddenSq.has(s.squad)&&(!sqName||s.squad===sqName)&&(!pSquads||pSquads.has(s.squad)));
   const AC=0.65,GE=0.35, bonusPct=cp=>cp<=m.sup?2:cp<=m.meta?1:0;
-  const bb=C.bonusBase||{disponivel:false,bySquad:{},byPerson:{},mes:""}, usaSnap=!!bb.disponivel;
-  const baseSquad=s=>(usaSnap&&bb.bySquad[s.squad]!=null)?bb.bySquad[s.squad]:s.feeAtivo;   // fee do fechamento; senão carteira atual
+  const bb=C.bonusBase||{disponivel:false,bySquad:{},byPerson:{},varBySquad:{},mes:""}, usaSnap=!!bb.disponivel;
+  const varSq=bb.varBySquad||{}, r2=x=>Math.round(x*100)/100;
+  const feeSquad=s=>(usaSnap&&bb.bySquad[s.squad]!=null)?bb.bySquad[s.squad]:s.feeAtivo;   // fee do fechamento; senão carteira atual
+  const baseSquad=s=>feeSquad(s)+(varSq[s.squad]||0);   // base = fee do fechamento + variável do mês anterior (planilha)
   const accGes=p=>usaSnap?(bb.byPerson[String(p.uid)]||{acc:0,ges:0}):{acc:(p.accFee||0),ges:(p.gesFee||0)};
-  const baseLbl=usaSnap?("fee da carteira ativa no fechamento de "+projMesLbl(bb.mes)):"carteira ativa atual (ainda sem fechamento do mês passado)";
+  const temVar=Object.keys(varSq).length>0;
+  const baseLbl=(usaSnap?("fee da carteira ativa no fechamento de "+projMesLbl(bb.mes)):"carteira ativa atual (ainda sem fechamento do mês passado)")+(temVar?" + variável de "+projMesLbl(bb.mes):"");
   const rows=squads.map(s=>{const cp=CPV(s),bp=bonusPct(cp),base=baseSquad(s),pool=base*bp/100;
-    return {s,cp,bp,base,pool,meta1:base*0.01,sup2:base*0.02};});
+    return {s,cp,bp,base,fee:feeSquad(s),vari:(varSq[s.squad]||0),pool,meta1:base*0.01,sup2:base*0.02};});
   const totPool=rows.reduce((a,r)=>a+r.pool,0), totBase=rows.reduce((a,r)=>a+r.base,0);
   const people=(C.people||[]).filter(p=>(p.nAtivo+p.nAviso)>0&&(p.squads||[]).some(s=>!hiddenSq.has(s))&&(!sqName||(p.squads||[]).includes(sqName))&&(uid==null||p.uid===uid));
-  const ppl=people.map(p=>{const b=accGes(p), carteira=(b.acc||0)*AC+(b.ges||0)*GE, roles=[];
+  const ppl0=people.map(p=>{const b=accGes(p), fee=(b.acc||0)*AC+(b.ges||0)*GE, roles=[];
     if((b.acc||0)>0)roles.push("Account"); if((b.ges||0)>0)roles.push("Gestor");
-    return {uid:p.uid,name:p.name,avatar:p.avatar,squads:p.squads||[],roles,carteira,meta:carteira*0.01,sup:carteira*0.02};
-  }).filter(p=>p.carteira>0).sort((a,b)=>b.sup-a.sup);
+    return {uid:p.uid,name:p.name,avatar:p.avatar,squads:p.squads||[],roles,fee};
+  }).filter(p=>p.fee>0);
+  // rateia a variável do squad (mês anterior) entre as pessoas, proporcional ao fee ponderado de cada uma no squad
+  const sqFeeTot={}; ppl0.forEach(p=>(p.squads||[]).forEach(s=>{sqFeeTot[s]=(sqFeeTot[s]||0)+p.fee;}));
+  const ppl=ppl0.map(p=>{let v=0;(p.squads||[]).forEach(s=>{if(varSq[s]&&sqFeeTot[s])v+=varSq[s]*(p.fee/sqFeeTot[s]);});
+    const carteira=r2(p.fee+v); return Object.assign({},p,{vari:r2(v),carteira,meta:carteira*0.01,sup:carteira*0.02});}).sort((a,b)=>b.sup-a.sup);
   const totMeta=ppl.reduce((a,p)=>a+p.meta,0), totSup=ppl.reduce((a,p)=>a+p.sup,0);
   $("root").innerHTML=`<div class="col">
     ${churnNav(scopeLabel(scope,C))}
     <div class="banner"><div class="bt"><h2>Bonificação</h2>
-      <p>Bônus = % da <b>carteira ativa (fee)</b> pela meta de churn: <b>super meta ⇒ 2%</b> · <b>meta ⇒ 1%</b> · acima ⇒ 0%. Account 65% / Gestor 35%.</p></div><div class="avatar">🏆</div></div>
+      <p>Bônus = % da carteira (<b>fee${temVar?' + variável':''}</b>) pela meta de churn: <b>super meta ⇒ 2%</b> · <b>meta ⇒ 1%</b> · acima ⇒ 0%. Account 65% / Gestor 35%.${temVar?' A variável vem da planilha, do mês anterior.':''}</p></div><div class="avatar">🏆</div></div>
     <div class="note"${usaSnap?'':' style="border-left-color:var(--high)"'}>Base do bônus: <b>${baseLbl}</b>, só projetos ativos.${usaSnap?'':' Assim que existir o fechamento do mês passado (o painel tira o retrato sozinho todo dia às 23h59), a base troca automaticamente.'}</div>
 
     <div class="card"><div class="card-h"><h3>Quanto cada pessoa recebe</h3><div class="r">se bater meta (1%) × super meta (2%)</div></div>
@@ -1069,7 +1076,7 @@ function renderChurnBonus(C,m,hiddenSq,scope){
         <td>${p.roles.join(" · ")||"—"}</td><td>${(p.squads||[]).map(s=>`<span class="sqtag">${esc(s)}</span>`).join(" ")}</td>
         <td class="r fee">${BRL(p.carteira)}</td><td class="r fee" style="color:var(--high)">${BRL(p.meta)}</td><td class="r fee" style="color:var(--good)">${BRL(p.sup)}</td></tr>`).join("")||'<tr><td colspan="6" class="empty">Sem pessoas.</td></tr>'}
       <tr style="border-top:2px solid var(--line-2)"><td><b>Total</b></td><td></td><td></td><td class="r fee">${BRL(ppl.reduce((a,p)=>a+p.carteira,0))}</td><td class="r fee" style="color:var(--high)"><b>${BRL(totMeta)}</b></td><td class="r fee" style="color:var(--good)"><b>${BRL(totSup)}</b></td></tr></tbody></table></div>
-      <div style="padding:10px 16px"><div class="note">Cada cliente entra na carteira do seu <b>Account</b> (65%) e do seu <b>Gestor</b> (35%). "Base ponderada" = fee do fechamento × peso do papel. <b>Se meta</b> = 1% · <b>Se super</b> = 2%. O que cada um leva no mês depende do churn do squad dele.</div></div></div>
+      <div style="padding:10px 16px"><div class="note">Cada cliente entra na carteira do seu <b>Account</b> (65%) e do seu <b>Gestor</b> (35%). "Base ponderada" = fee do fechamento × peso do papel${temVar?' + a variável do mês anterior (planilha), rateada por fee no squad':''}. <b>Se meta</b> = 1% · <b>Se super</b> = 2%. O que cada um leva no mês depende do churn do squad dele.</div></div></div>
 
     <div class="card"><div class="card-h"><h3>Bônus por squad</h3><div class="r">pela meta batida</div></div>
       <div class="tblwrap"><table class="ctable"><thead><tr><th>Squad</th><th class="r">Churn</th><th>Faixa</th><th class="r">Base (fechamento)</th><th class="r">Bônus atual</th><th class="r">Se meta 1%</th><th class="r">Se super 2%</th></tr></thead>
@@ -1238,61 +1245,36 @@ function exportLanc(){
   a.download="lancamentos.json";document.body.appendChild(a);a.click();a.remove();
   showToast("Arquivo baixado. Me envie (ou faça commit em data/lancamentos.json) para valer para todos.");
 }
+const PLANILHA_URL="https://docs.google.com/spreadsheets/d/1rObxF8ftyxvV1c2mtM0zyip22YVFf45OO-7Wyg-1Ixc/edit";
 function renderChurnLanc(C,m,hiddenSq){
   $("ptitle").textContent="Churn · Lançamentos";
   $("topright").innerHTML=`<div class="stepbtns"><button class="btn" data-churn-back>← Voltar</button></div>`;
-  const squads=(C.squads||[]).filter(s=>s.squad!=="—"&&!hiddenSq.has(s.squad));
-  const mes=(MODEL.lancamentos&&MODEL.lancamentos.mesAtual)||MODEL.window.to.slice(0,7);
-  const committed=MODEL.lancamentos||{variaveis:[],reducoes:[]}, loc=lancLocal();
-  const sqOpts=squads.map(s=>`<option value="${esc(s.squad)}">${esc(s.squad)}</option>`).join('');
-  const nPend=loc.reducoes.length+loc.variaveis.length;
-  const tok=ghToken();
-  const redRow=(e,pend,i)=>`<tr><td><b>${esc(e.cliente||'—')}</b></td><td><span class="sqtag">${esc(e.squad||'—')}</span></td><td>${esc(e.motivo||'—')}</td><td class="r fee" style="color:var(--crit)">${BRL(e.valor||0)}</td><td class="r">${esc(e.data||e.mes||mes)}</td><td>${pend?`<button class="closebtn" data-lanc-del="reducoes:${i}">remover</button>`:'<span class="pill okdone">salvo</span>'}</td></tr>`;
-  const varRow=(e,pend,i)=>`<tr><td><b>${esc(e.cliente||'—')}</b></td><td><span class="sqtag">${esc(e.squad||'—')}</span></td><td class="r fee" style="color:var(--gold-2)">${BRL(e.valor||0)}</td><td class="r">${esc(e.mes||mes)}</td><td>${pend?`<button class="closebtn" data-lanc-del="variaveis:${i}">remover</button>`:'<span class="pill okdone">salvo</span>'}</td></tr>`;
+  const L=MODEL.lancamentos||{variaveis:[],reducoes:[],mesAtual:"",mesPrev:""};
+  const mes=L.mesAtual||MODEL.window.to.slice(0,7), mesPrev=L.mesPrev||"";
+  const red=(L.reducoes||[]).filter(e=>!hiddenSq.has(e.squad)).sort((a,b)=>(a.mes<b.mes?1:-1)||b.valor-a.valor);
+  const var_=(L.variaveis||[]).filter(e=>!hiddenSq.has(e.squad)).sort((a,b)=>(a.mes<b.mes?1:-1)||b.valor-a.valor);
+  const redMes=red.filter(e=>e.mes===mes), varPrev=var_.filter(e=>e.mes===mesPrev);
+  const redRow=e=>`<tr><td><b>${esc(e.cliente||'—')}</b></td><td><span class="sqtag">${esc(e.squad||'—')}</span></td><td>${esc(e.motivo||'—')}</td><td class="r fee" style="color:var(--crit)">${BRL(e.valor||0)}</td><td class="r">${esc(e.mes||'—')}</td></tr>`;
+  const varRow=e=>`<tr><td><b>${esc(e.cliente||'—')}</b></td><td><span class="sqtag">${esc(e.squad||'—')}</span></td><td class="r fee" style="color:var(--gold-2)">${BRL(e.valor||0)}</td><td class="r">${esc(e.mes||'—')}</td></tr>`;
   $("root").innerHTML=`<div class="col">
     ${churnNav('')}
-    <div class="banner"><div class="bt"><h2>Lançamentos — ${projMesLbl(mes)}</h2>
-      <p>Adicione <b>reduções</b> (desconto / tirou serviço → entram no churn como valor em risco) e <b>variável</b> (comissão → entra na base Fee + Variável), vinculadas ao cliente.</p></div><div class="avatar">✍️</div></div>
+    <div class="banner"><div class="bt"><h2>Lançamentos — da planilha</h2>
+      <p>Variável e reduções vêm da <b>planilha compartilhada</b>. O time preenche lá; o painel <b>lê sozinho</b> a cada rodada. Esta tela é só espelho (leitura).</p>
+      <div class="cta"><button onclick="window.open('${PLANILHA_URL}','_blank')">📄 Abrir a planilha</button></div></div><div class="avatar">📄</div></div>
 
-    <div class="card"><div class="card-h"><h3>🔗 Salvar automático</h3><div class="r">${tok?'<span style="color:var(--good)">ligado</span>':'<span style="color:var(--high)">desligado</span>'}</div></div>
-      <div class="pad">${tok
-        ? `<div class="note" style="border-left-color:var(--good)">✅ <b>Salvar automático ligado.</b> Ao adicionar um lançamento, o painel grava sozinho em <code>data/lancamentos.json</code> — você <b>não precisa baixar nem me mandar nada</b>. Aplica aqui na hora e entra no ar para toda a equipe em ~10 min.
-           <div style="margin-top:10px"><button class="btn" data-gh-clear>Desconectar token deste navegador</button></div></div>`
-        : `<div class="metaedit"><label style="grid-column:1/-1">Token do GitHub — <span style="color:var(--muted)">fine-grained, só o repositório <b>painel-time</b>, permissão <b>Contents: Read and write</b></span><input id="ghTok" class="lancin" type="password" placeholder="github_pat_..." autocomplete="off"></label>
-           <button class="applybtn" data-gh-save>Conectar</button></div>
-           <div class="note" style="margin-top:10px">Cole o token <b>uma vez</b>: a partir daí o painel salva os lançamentos sozinho, sem baixar arquivo. O token fica <b>só neste navegador</b> (localStorage) — nunca vai para o código, para o repositório nem para o site. <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">Gerar token no GitHub →</a></div>`}
-      </div></div>
-    ${nPend?`<div class="note" style="border-left-color:var(--high)">⚠️ Você tem <b>${nPend} lançamento(s) pendente(s)</b> neste navegador${tok?' que ainda não confirmaram no repositório':', salvos só aqui'}. ${tok?'<button class="btn" data-gh-retry style="margin-left:6px">↻ Tentar salvar agora</button>':'Ligue o <b>Salvar automático</b> acima, ou baixe o arquivo e me envie.'}
-      <div style="margin-top:10px"><button class="applybtn" data-lanc-export>⭳ Baixar arquivo (lancamentos.json)</button></div></div>`:''}
+    <div class="note">Como funciona: <b>Churn</b> (abas "{Time} - Churn") entra no churn do mês da coluna Mês. <b>Variável</b> (abas "{Time} - Variável", coluna Valor da Comissão) entra na <b>meta do mês seguinte</b> — por isso a bonificação de agora usa a variável de <b>${mesPrev?projMesLbl(mesPrev):'—'}</b>. Não precisa baixar nem importar nada.</div>
 
-    <div class="card"><div class="card-h"><h3>➖ Adicionar redução / desconto</h3><div class="r">entra no churn como valor em risco</div></div>
-      <div class="pad"><div class="metaedit">
-        <label>Squad<select id="redSquad" class="lancin">${sqOpts}</select></label>
-        <label>Cliente<input id="redCli" class="lancin" placeholder="nome do cliente"></label>
-        <label>Valor (R$)<input id="redVal" class="lancin" type="number" min="0" step="50"></label>
-        <label>Motivo<input id="redMot" class="lancin" placeholder="desconto / tirou serviço"></label>
-        <label>Data<input id="redData" class="lancin" type="date" value="${MODEL.window.to}"></label>
-        <button class="applybtn" data-lanc-add="reducao">Adicionar redução</button>
-      </div></div></div>
+    <div class="card"><div class="card-h"><h3>Reduções — ${projMesLbl(mes)}</h3><div class="r">aplicadas no churn do mês: ${BRL((C.totals&&C.totals.reducao)||0)}</div></div>
+      ${redMes.length?`<div class="tblwrap"><table class="ctable"><thead><tr><th>Cliente</th><th>Time</th><th>Motivo</th><th class="r">Valor</th><th class="r">Mês</th></tr></thead>
+      <tbody>${redMes.map(redRow).join('')}</tbody></table></div>`:'<div class="empty">Nenhuma redução na planilha para este mês.</div>'}</div>
 
-    <div class="card"><div class="card-h"><h3>➕ Adicionar variável (comissão)</h3><div class="r">entra na base Fee + Variável</div></div>
-      <div class="pad"><div class="metaedit">
-        <label>Squad<select id="varSquad" class="lancin">${sqOpts}</select></label>
-        <label>Cliente<input id="varCli" class="lancin" placeholder="nome do cliente"></label>
-        <label>Valor (R$)<input id="varVal" class="lancin" type="number" min="0" step="50"></label>
-        <button class="applybtn" data-lanc-add="variavel">Adicionar variável</button>
-      </div></div></div>
+    <div class="card"><div class="card-h"><h3>Variável — ${mesPrev?projMesLbl(mesPrev):'mês anterior'} (vale na meta de ${projMesLbl(mes)})</h3><div class="r">${varPrev.length} lançamento(s)</div></div>
+      ${varPrev.length?`<div class="tblwrap"><table class="ctable"><thead><tr><th>Cliente</th><th>Time</th><th class="r">Comissão</th><th class="r">Mês</th></tr></thead>
+      <tbody>${varPrev.map(varRow).join('')}</tbody></table></div>`:'<div class="empty">Nenhuma variável na planilha para o mês anterior.</div>'}</div>
 
-    <div class="card"><div class="card-h"><h3>Reduções do mês</h3><div class="r">${projMesLbl(mes)} · aplicadas no churn: ${BRL((C.totals&&C.totals.reducao)||0)}</div></div>
-      ${(committed.reducoes.length||loc.reducoes.length)?`<div class="tblwrap"><table class="ctable"><thead><tr><th>Cliente</th><th>Squad</th><th>Motivo</th><th class="r">Valor</th><th class="r">Data</th><th>Status</th></tr></thead>
-      <tbody>${committed.reducoes.map(e=>redRow(e,false)).join('')}${loc.reducoes.map((e,i)=>redRow(e,true,i)).join('')}</tbody></table></div>`:'<div class="empty">Nenhuma redução lançada neste mês.</div>'}</div>
-
-    <div class="card"><div class="card-h"><h3>Variável lançada</h3><div class="r">${projMesLbl(mes)}</div></div>
-      ${(committed.variaveis.length||loc.variaveis.length)?`<div class="tblwrap"><table class="ctable"><thead><tr><th>Cliente</th><th>Squad</th><th class="r">Valor</th><th class="r">Mês</th><th>Status</th></tr></thead>
-      <tbody>${committed.variaveis.map(e=>varRow(e,false)).join('')}${loc.variaveis.map((e,i)=>varRow(e,true,i)).join('')}</tbody></table></div>`:'<div class="empty">Nenhuma variável lançada por aqui ainda.</div>'}</div>
-
-    <div class="note">Com o <b>Salvar automático</b> ligado, adicionar já grava no repositório e reflete para todos na próxima rodada — sem baixar nada. Sem o token, o lançamento fica só neste navegador e você usa o <b>Baixar arquivo</b> como plano B.
-      <div style="margin-top:10px"><button class="btn" data-lanc-export>⭳ Baixar arquivo (lancamentos.json)</button></div></div>
+    ${(red.length||var_.length)?`<div class="card"><div class="card-h"><h3>Tudo que está na planilha</h3><div class="r">todos os meses · ${red.length} reduções · ${var_.length} variáveis</div></div>
+      <div class="tblwrap"><table class="ctable"><thead><tr><th>Tipo</th><th>Cliente</th><th>Time</th><th class="r">Valor</th><th class="r">Mês</th></tr></thead>
+      <tbody>${red.map(e=>`<tr><td><span class="pill">redução</span></td><td>${esc(e.cliente||'—')}</td><td><span class="sqtag">${esc(e.squad)}</span></td><td class="r fee" style="color:var(--crit)">${BRL(e.valor||0)}</td><td class="r">${esc(e.mes)}</td></tr>`).join('')}${var_.map(e=>`<tr><td><span class="pill">variável</span></td><td>${esc(e.cliente||'—')}</td><td><span class="sqtag">${esc(e.squad)}</span></td><td class="r fee" style="color:var(--gold-2)">${BRL(e.valor||0)}</td><td class="r">${esc(e.mes)}</td></tr>`).join('')}</tbody></table></div></div>`:''}
   </div>`;
 }
 

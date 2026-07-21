@@ -19,6 +19,7 @@ Uso:
               --render-only (só regenera o HTML a partir do model.json)
 """
 import os, sys, json, time, datetime, re, urllib.request, urllib.parse, urllib.error
+import zipfile, io, xml.etree.ElementTree as ET
 
 # Console do Windows costuma ser cp1252; garante UTF-8 na saída.
 try:
@@ -194,6 +195,103 @@ def fetch_all(token):
     json.dump(fetch_avatars(token), open(os.path.join(DATA, "avatars.json"), "w", encoding="utf-8"), ensure_ascii=False)
     fetch_empresas(token)
     return tasks
+
+# ------------------------------------------------------------------ planilha Google (variável + reduções)
+# Fonte compartilhada: o time preenche a planilha; o painel lê dela a cada rodada.
+# Abas: "{TIME} - Churn" (reduções) e "{TIME} - Variável" (comissão). Blocos por mês.
+PLANILHA_ID = "1rObxF8ftyxvV1c2mtM0zyip22YVFf45OO-7Wyg-1Ixc"
+PLANILHA_CACHE = os.path.join(DATA, "planilha_cache.json")
+_XNS = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
+_XRNS = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}"
+MESES_PT = {"JANEIRO": 1, "FEVEREIRO": 2, "MARÇO": 3, "MARCO": 3, "ABRIL": 4, "MAIO": 5, "JUNHO": 6,
+            "JULHO": 7, "AGOSTO": 8, "SETEMBRO": 9, "OUTUBRO": 10, "NOVEMBRO": 11, "DEZEMBRO": 12}
+
+def _plan_num(x):
+    if x in (None, ""):
+        return 0.0
+    s = str(x).replace("R$", "").strip()
+    if "," in s and "." in s:
+        s = s.replace(".", "").replace(",", ".")
+    elif "," in s:
+        s = s.replace(",", ".")
+    try:
+        return float(s)
+    except Exception:
+        return 0.0
+
+def parse_planilha_xlsx(xlsx_bytes):
+    """Lê o .xlsx da planilha (stdlib) e devolve {reducoes:[...], variaveis:[...]}.
+    Time = nome da aba antes de ' - '; mês = título do bloco; valor de churn = coluna Valor;
+    valor de variável = coluna 'Valor da Comissão'. Ignora cabeçalhos, 'Total do mês' e exemplos."""
+    z = zipfile.ZipFile(io.BytesIO(xlsx_bytes))
+    ss = []
+    if "xl/sharedStrings.xml" in z.namelist():
+        r = ET.fromstring(z.read("xl/sharedStrings.xml"))
+        for si in r.findall(_XNS + "si"):
+            ss.append("".join(t.text or "" for t in si.iter(_XNS + "t")))
+    wb = ET.fromstring(z.read("xl/workbook.xml"))
+    rels = ET.fromstring(z.read("xl/_rels/workbook.xml.rels"))
+    relmap = {r.get("Id"): r.get("Target") for r in rels}
+    reducoes, variaveis = [], []
+    for s in wb.find(_XNS + "sheets"):
+        name = s.get("name") or ""
+        parts = name.split(" - ")
+        if len(parts) < 2:
+            continue
+        squad, tipo = parts[0].strip(), parts[1].strip().lower()
+        if squad in EXCLUDE_SQUADS:
+            continue
+        tgt = relmap.get(s.get(_XRNS + "id"))
+        if not tgt:
+            continue
+        path = ("xl/" + tgt) if not tgt.startswith("/") else tgt[1:]
+        grid = {}
+        for c in ET.fromstring(z.read(path)).iter(_XNS + "c"):
+            ref, t, v = c.get("r"), c.get("t"), c.find(_XNS + "v")
+            if v is None or not ref:
+                continue
+            val = ss[int(v.text)] if t == "s" else v.text
+            mm = re.match(r"([A-Z]+)(\d+)", ref)
+            grid[(int(mm.group(2)), mm.group(1))] = val
+        maxrow = max((rc[0] for rc in grid), default=0)
+        cur = None
+        for row in range(1, maxrow + 1):
+            a = (grid.get((row, "A")) or "").strip()
+            if not a:
+                continue
+            mt = re.match(r".*-\s*\d+/([^/]+)/(\d{4})", a.upper())
+            if mt:
+                mo = MESES_PT.get(mt.group(1).strip())
+                cur = ("%s-%02d" % (mt.group(2), mo)) if mo else None
+                continue
+            al = a.lower()
+            if al in ("cliente", "empresa") or al.startswith("total do m") or "exemplo" in al or not cur:
+                continue
+            if "churn" in tipo:
+                val = _plan_num(grid.get((row, "B")))
+                if val > 0:
+                    reducoes.append({"squad": squad, "mes": cur, "cliente": a, "valor": round(val, 2),
+                                     "motivo": (grid.get((row, "C")) or ""), "data": None})
+            elif "vari" in tipo:
+                val = _plan_num(grid.get((row, "D")))   # Valor da Comissão
+                if val > 0:
+                    variaveis.append({"squad": squad, "mes": cur, "cliente": a, "valor": round(val, 2)})
+    return {"reducoes": reducoes, "variaveis": variaveis}
+
+def fetch_planilha_lancamentos():
+    """Baixa a planilha (export xlsx) e lê variável + reduções. Cacheia o último resultado bom;
+    se a rede falhar numa rodada, usa o cache (não zera os números)."""
+    url = "https://docs.google.com/spreadsheets/d/%s/export?format=xlsx" % PLANILHA_ID
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "painel-time/1.0"})
+        data = urllib.request.urlopen(req, timeout=60).read()
+        out = parse_planilha_xlsx(data)
+        json.dump(out, open(PLANILHA_CACHE, "w", encoding="utf-8"), ensure_ascii=False)
+        print("Planilha lida: %d reduções, %d variáveis." % (len(out["reducoes"]), len(out["variaveis"])))
+        return out
+    except Exception as e:
+        print("  [aviso] não consegui ler a planilha (%s); usando cache." % str(e)[:80])
+        return _load(PLANILHA_CACHE, {"reducoes": [], "variaveis": []})
 
 def fetch_empresas(token):
     """Baixa a lista 'Gestão de empresas' (fee, status, squad, account/gestor, datas de churn)."""
@@ -784,38 +882,41 @@ def analyze(tasks, record=False):
 
     # ---- controle de churn (lista Gestão de empresas) ----
     empresas = _load(os.path.join(DATA, "empresas.json"), [])
-    # snapshot manual da planilha (histórico churn% por mês + variável do mês). Editáveis à mão.
     churn_history = _load(os.path.join(DATA, "churn_history.json"), {})
-    variavel = _load(os.path.join(DATA, "churn_variavel.json"), {})
-    # lançamentos avulsos (compartilhados no repo): variável e reduções vinculadas a clientes.
-    lanc = _load(os.path.join(DATA, "lancamentos.json"), {"variaveis": [], "reducoes": []})
     mes_atual = "%04d-%02d" % (today.year, today.month)
-    def _lanc_mes(e):
-        return (e.get("mes") or mes_atual) == mes_atual
-    # variável por squad = snapshot da planilha + lançamentos do mês atual
-    vbys = dict((variavel or {}).get("bySquad", {}))
-    for e in lanc.get("variaveis", []):
-        if not _lanc_mes(e):
-            continue
-        s = e.get("squad") or "—"
-        cur = float((vbys.get(s) or {}).get("variavel") or 0.0)
-        vbys[s] = {"variavel": round(cur + float(e.get("valor") or 0.0), 2)}
-    variavel = dict(variavel or {}, bySquad=vbys, mes=(variavel or {}).get("mes"))
-    # reduções por squad (mês atual) + lista p/ exibição
+    py, pm = (today.year - 1, 12) if today.month == 1 else (today.year, today.month - 1)
+    mes_prev = "%04d-%02d" % (py, pm)   # variável deste mês vale na META do mês seguinte
+    # FONTE COMPARTILHADA: planilha Google (o time preenche; o painel lê). Fetch fresco nas rodadas
+    # de nuvem (record=True); --no-fetch usa o cache p/ não zerar.
+    plan = fetch_planilha_lancamentos() if record else _load(PLANILHA_CACHE, {"reducoes": [], "variaveis": []})
+    # reduções do MÊS ATUAL → entram no churn do mês
     red_by, red_list = {}, []
-    for e in lanc.get("reducoes", []):
-        if not _lanc_mes(e):
+    for e in plan.get("reducoes", []):
+        if e.get("mes") != mes_atual:
             continue
         s = e.get("squad") or "—"
-        red_by[s] = round(float(red_by.get(s, 0.0)) + float(e.get("valor") or 0.0), 2)
-        red_list.append({"cliente": e.get("cliente"), "squad": s, "valor": round(float(e.get("valor") or 0.0), 2),
-                         "motivo": e.get("motivo"), "data": e.get("data"), "mes": e.get("mes") or mes_atual})
+        val = float(e.get("valor") or 0.0)
+        red_by[s] = round(float(red_by.get(s, 0.0)) + val, 2)
+        red_list.append({"cliente": e.get("cliente"), "squad": s, "valor": round(val, 2),
+                         "motivo": e.get("motivo"), "data": e.get("data"), "mes": e.get("mes")})
+    # variável: MÊS ATUAL → toggle Fee+Variável ; MÊS ANTERIOR → base da bonificação
+    vbys, var_prev = {}, {}
+    for e in plan.get("variaveis", []):
+        s = e.get("squad") or "—"
+        val = float(e.get("valor") or 0.0)
+        if e.get("mes") == mes_atual:
+            cur = float((vbys.get(s) or {}).get("variavel") or 0.0)
+            vbys[s] = {"variavel": round(cur + val, 2)}
+        if e.get("mes") == mes_prev:
+            var_prev[s] = round(float(var_prev.get(s, 0.0)) + val, 2)
+    variavel = {"bySquad": vbys, "mes": mes_atual}
     churn = build_churn(empresas, variavel, red_by, red_list, today=today)
     if record:
         record_fee_snapshot(churn, today)
         record_churn_history(churn, churn_history, today)   # acumula churn% por squad no mês atual
     fee_history = _load(FEEHIST, {})
     churn["bonusBase"] = bonus_base(fee_history, today)     # bônus usa o fee do fechamento do mês passado
+    churn["bonusBase"]["varBySquad"] = var_prev            # + variável do mês anterior (planilha) na base
 
     model = {
         "generated": today.strftime("%d/%m/%Y"),
@@ -830,7 +931,9 @@ def analyze(tasks, record=False):
         "churn": churn,
         "feeHistory": fee_history,
         "churnHistory": churn_history,
-        "lancamentos": {"variaveis": lanc.get("variaveis", []), "reducoes": lanc.get("reducoes", []), "mesAtual": mes_atual},
+        # espelho da planilha (leitura): o time preenche na planilha, o painel só mostra
+        "lancamentos": {"variaveis": plan.get("variaveis", []), "reducoes": plan.get("reducoes", []),
+                        "mesAtual": mes_atual, "mesPrev": mes_prev, "fonte": "planilha"},
     }
     json.dump(model, open(os.path.join(HERE, "model.json"), "w", encoding="utf-8"), ensure_ascii=False)
     print(f"\nmodel.json: {len(overdue)} atrasos · {len(today_tasks)} p/ hoje · {len(done)} concluídas · "
