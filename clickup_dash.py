@@ -76,9 +76,15 @@ MALFORMED_LISTS = {"Gestão de Projetos", "Processos de Artes", "Planejamento e 
 CF_ACCOUNT = "89b1f5f2-cbd4-4f83-a26e-35237a3979b9"
 CF_GESTOR  = "109e26b9-be03-4c1c-bfe6-8ce55f893d4d"
 CF_SQUAD   = "41162abd-5add-4ba8-8021-8e429437f907"
-SQUAD_OPTION_TEAM = {  # option_id -> time
+SQUAD_OPTION_TEAM = {  # option_id -> time (squad) — usado p/ vincular a tarefa ao time
+    "3ccda512-5eb3-42a8-ae50-df68130b8323": "ADFORCE",
+    "9da4d887-eeea-4861-8e2a-c121e942375b": "G.O.A.T",
+    "57826e7f-16f9-46c1-b8d1-ecf9b6d767e3": "BULLS",
     "e7381c3d-7fa2-49dc-b751-3119a12480b6": "E-SCALE",
+    "7a77de2a-1dda-40fc-a6ff-154df5251ccf": "COMERCIAL",
     "5b22d724-ccb2-4d9f-a4d9-f722e60387c5": "FENIX",
+    "9616694f-428d-4b66-aca3-ff11f29fe815": "BACKOFFICE",
+    # VALHALLA (0f534b85-...) fica de fora do painel (mesmo critério do churn)
 }
 
 # ---- Controle de churn: lista "Gestão de empresas" e seus campos ----
@@ -92,6 +98,8 @@ SQUAD_ORDER = {0: "ADFORCE", 1: "G.O.A.T", 2: "BULLS", 3: "VALHALLA",
                4: "E-SCALE", 5: "COMERCIAL", 6: "FENIX", 7: "BACKOFFICE"}
 # Squads fora do controle de churn (excluídos de totais, squads, pessoas e clientes).
 EXCLUDE_SQUADS = {"VALHALLA"}
+# Times fora do painel de TAREFAS (não do churn): não usam as listas da Operacional.
+EXCLUDE_TEAMS = {"COMERCIAL", "BACKOFFICE"}
 SQUAD_ALL = ["ADFORCE", "G.O.A.T", "BULLS", "E-SCALE", "COMERCIAL", "FENIX", "BACKOFFICE"]
 # Situação do cliente (status da tarefa) → grupo de churn:
 ST_ATIVO   = {"ativo", "inadimplente", "pendência adm"}          # carteira ativa (base)
@@ -222,7 +230,7 @@ def fetch_avatars(token):
         if str(team.get("id")) == TEAM_ID:
             for m in team.get("members", []):
                 u = m.get("user", {}) or {}
-                if u.get("id") in MEMBERS and u.get("profilePicture"):
+                if u.get("id") and u.get("profilePicture"):   # todos os membros (roster é dinâmico)
                     av[str(u["id"])] = u["profilePicture"]
     return av
 
@@ -249,7 +257,8 @@ def member_ids_from_cf(task, cf_id):
 def squad_team(task):
     for f in task.get("custom_fields", []):
         if f.get("id") == CF_SQUAD and f.get("value") not in (None, ""):
-            return SQUAD_OPTION_TEAM.get(str(f["value"]))
+            t = SQUAD_OPTION_TEAM.get(str(f["value"]))
+            return None if t in EXCLUDE_TEAMS else t
     return None
 
 # Termos que aparecem em [COLCHETE] mas são TIPO de arte/etapa, não cliente.
@@ -302,7 +311,8 @@ def _load(path, default):
     except Exception:
         return default
 
-def record_postponements(tasks, today):
+def record_postponements(tasks, today, roster_ids=None):
+    roster_ids = roster_ids if roster_ids is not None else set(MEMBERS)
     prev = _load(STATE, {})          # {id: {"due": "YYYY-MM-DD", ...}}
     log = _load(PLOG, [])
     logged = {(e["id"], e["at"], e["to"]) for e in log}  # evita duplicar na mesma rodada
@@ -312,7 +322,7 @@ def record_postponements(tasks, today):
         if lst in EXCLUDE_LISTS or is_closed(t):
             continue
         due = to_date(t.get("due_date"))
-        uids = [a["id"] for a in t.get("assignees", []) if a["id"] in MEMBERS]
+        uids = [a["id"] for a in t.get("assignees", []) if a["id"] in roster_ids]
         if not due or not uids:
             continue
         cur[t["id"]] = {"due": due.isoformat(), "name": t.get("name", ""), "list": lst, "uids": uids}
@@ -603,11 +613,62 @@ def record_churn_history(churn, hist, today):
     json.dump(hist, open(os.path.join(DATA, "churn_history.json"), "w", encoding="utf-8"), ensure_ascii=False)
     return hist
 
+# ------------------------------------------------------------------ roster dos times (dinâmico)
+def _order_teams(teams):
+    """Ordena os times na ordem canônica dos squads (ADFORCE, G.O.A.T, ...)."""
+    return [s for s in SQUAD_ALL if s in teams] + sorted(t for t in teams if t not in SQUAD_ALL)
+
+def roster_from_empresas(empresas):
+    """Deriva {uid: {"name","teams":set,"roles":set}} da lista de clientes:
+    cada Account/Gestor de um cliente entra no time (squad) daquele cliente."""
+    r = {}
+    for t in empresas:
+        if not is_company(t):
+            continue
+        squad = _cf_squad(t) or "—"
+        if squad == "—" or squad in EXCLUDE_SQUADS or squad in EXCLUDE_TEAMS:
+            continue
+        for cid, role in ((CF_ACCOUNT, "Account"), (CF_GESTOR, "Gestor de Tráfego")):
+            for u in _cf_users(t, cid):
+                e = r.setdefault(u["uid"], {"name": "", "teams": set(), "roles": set()})
+                if u.get("name") and not e["name"]:
+                    e["name"] = u["name"]
+                e["teams"].add(squad)
+                e["roles"].add(role)
+    return r
+
+def build_roster(empresas):
+    """Monta o roster de Tarefas: os 14 membros curados (mantêm nome/função/time e ordem) +
+    todos os Account/Gestor de cada squad vindos da lista de clientes. Pessoas em mais de um
+    squad aparecem em cada um (campo 'teams'); 'team' é o time principal (p/ avatar/label)."""
+    derived = roster_from_empresas(empresas)
+    roster, order = {}, 0
+    for u in MEMBER_ORDER:                     # 1) curados primeiro (preserva ordem e função)
+        name, team, role = MEMBERS[u]
+        teams = {team} | (derived.get(u, {}).get("teams") or set())
+        roster[u] = {"uid": u, "name": name, "team": team, "role": role,
+                     "teams": _order_teams(teams), "order": order}
+        order += 1
+    for u, e in derived.items():               # 2) demais pessoas da lista de clientes
+        if u in roster:
+            continue
+        teams = _order_teams(e["teams"])
+        both = ("Account" in e["roles"]) and ("Gestor de Tráfego" in e["roles"])
+        role = "Account / Gestor" if both else ("Account" if "Account" in e["roles"]
+               else ("Gestor de Tráfego" if e["roles"] else "—"))
+        roster[u] = {"uid": u, "name": e["name"] or str(u), "team": teams[0] if teams else "—",
+                     "role": role, "teams": teams, "order": order}
+        order += 1
+    return roster
+
 # ------------------------------------------------------------------ analyze
 def analyze(tasks, record=False):
     today = datetime.datetime.now(TZ).date()
+    empresas = _load(os.path.join(DATA, "empresas.json"), [])   # base p/ churn e p/ roster dos times
+    roster = build_roster(empresas)
+    roster_ids = set(roster)
     if record:
-        record_postponements(tasks, today)   # registra adiamentos de prazo vs. rodada anterior
+        record_postponements(tasks, today, roster_ids)   # registra adiamentos de prazo vs. rodada anterior
     overdue, malformed, done, today_tasks, created, seen = [], [], [], [], [], set()
     byid = {t["id"]: t for t in tasks}
     min_day = today
@@ -621,7 +682,7 @@ def analyze(tasks, record=False):
         due = to_date(t.get("due_date"))
         closed = to_date(t.get("date_closed")) if is_closed(t) else None
         assignees = [a["id"] for a in t.get("assignees", [])]
-        members_assigned = [i for i in assignees if i in MEMBERS]
+        members_assigned = [i for i in assignees if i in roster_ids]
 
         if closed:
             # concluída (no prazo x atraso) — guardamos detalhes para listar
@@ -663,15 +724,15 @@ def analyze(tasks, record=False):
                 if problems:
                     acc_ids = member_ids_from_cf(t, CF_ACCOUNT)
                     ges_ids = member_ids_from_cf(t, CF_GESTOR)
-                    account = next((MEMBERS[i][0] for i in acc_ids if i in MEMBERS), None)
-                    gestor = next((MEMBERS[i][0] for i in ges_ids if i in MEMBERS), None)
+                    account = next((roster[i]["name"] for i in acc_ids if i in roster_ids), None)
+                    gestor = next((roster[i]["name"] for i in ges_ids if i in roster_ids), None)
                     team = squad_team(t)
                     # provável dono: 1) responsável do time, 2) Account, 3) Gestor
                     prob = (members_assigned[0] if members_assigned else None) \
-                        or next((i for i in acc_ids if i in MEMBERS), None) \
-                        or next((i for i in ges_ids if i in MEMBERS), None)
+                        or next((i for i in acc_ids if i in roster_ids), None) \
+                        or next((i for i in ges_ids if i in roster_ids), None)
                     if prob and not team:
-                        team = MEMBERS[prob][1]
+                        team = roster[prob]["team"]
                     cd0 = to_date(t.get("date_created"))
                     malformed.append({
                         "id": t["id"], "name": t.get("name", ""), "list": lst,
@@ -682,17 +743,17 @@ def analyze(tasks, record=False):
         # comportamento: criação (por quem criou, se for do time) — vale para aberta ou concluída
         cr = (t.get("creator") or {}).get("id")
         cd = to_date(t.get("date_created"))
-        if cr in MEMBERS and cd:
+        if cr in roster_ids and cd:
             created.append({"uid": cr, "day": cd.isoformat()})
             if cd < min_day: min_day = cd
 
     avatars = _load(os.path.join(DATA, "avatars.json"), {})
-    members = [{"uid": u, "name": MEMBERS[u][0], "team": MEMBERS[u][1], "role": MEMBERS[u][2],
-                "avatar": avatars.get(str(u))} for u in MEMBER_ORDER]
+    members = [{"uid": r["uid"], "name": r["name"], "team": r["team"], "teams": r["teams"],
+                "role": r["role"], "avatar": avatars.get(str(r["uid"]))}
+               for r in sorted(roster.values(), key=lambda x: x["order"])]
     postpones = aggregate_postponements()
 
-    # ---- controle de churn (lista Gestão de empresas) ----
-    empresas = _load(os.path.join(DATA, "empresas.json"), [])
+    # ---- controle de churn (lista Gestão de empresas) — empresas já carregada no topo ----
     # snapshot manual da planilha (histórico churn% por mês + variável do mês). Editáveis à mão.
     churn_history = _load(os.path.join(DATA, "churn_history.json"), {})
     variavel = _load(os.path.join(DATA, "churn_variavel.json"), {})

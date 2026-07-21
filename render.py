@@ -50,8 +50,8 @@ h1,h2,.brand b,.card-h h3,.acard h3,.stat .n,.donut .c b,.banner h2{font-family:
 .nav .ic{width:20px;text-align:center;font-size:15px;opacity:.9}
 .nav:hover{color:var(--side-ink);background:var(--side-2)}
 .nav[aria-current="true"]{background:linear-gradient(135deg,var(--gold),var(--magenta));color:#fff}
-.tfilter{display:flex;gap:6px;padding:8px 6px 4px}
-.tfilter button{flex:1;font-family:inherit;font-size:11.5px;font-weight:700;color:var(--side-muted);background:var(--side-2);border:0;border-radius:9px;padding:8px 4px;cursor:pointer}
+.tfilter{display:flex;flex-wrap:wrap;gap:6px;padding:8px 6px 4px}
+.tfilter button{flex:1 1 44%;font-family:inherit;font-size:11px;font-weight:700;letter-spacing:.02em;color:var(--side-muted);background:var(--side-2);border:0;border-radius:9px;padding:8px 4px;cursor:pointer;white-space:nowrap}
 .tfilter button[aria-pressed="true"]{background:var(--gold-soft);color:var(--gold-2)}
 :root[data-theme="dark"] .tfilter button[aria-pressed="true"]{color:var(--gold)}
 .side-foot{margin-top:auto;display:flex;flex-direction:column;gap:10px;padding-top:12px}
@@ -314,10 +314,7 @@ h1,h2,.brand b,.card-h h3,.acard h3,.stat .n,.donut .c b,.banner h2{font-family:
     <button class="nav" data-page="times"><span class="ic">⚙</span> Times &amp; metas</button>
     <div id="teamfilterwrap">
       <div class="navlbl">Time</div>
-      <div class="tfilter" id="tfilter">
-        <button data-team="all" aria-pressed="true">Ambos</button>
-        <button data-team="E-SCALE" aria-pressed="false">E‑SCALE</button>
-        <button data-team="FENIX" aria-pressed="false">FENIX</button>
+      <div class="tfilter" id="tfilter"><!-- montado dinamicamente a partir dos times presentes -->
       </div>
     </div>
     <div class="side-foot">
@@ -369,17 +366,26 @@ const esc=s=>(s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;
 const sev=d=>d>30?"crit":d>7?"high":d>0?"med":"today";
 const SEVC={crit:"var(--crit)",high:"var(--high)",med:"var(--med)",today:"var(--today)"};
 const initials=n=>n.split(" ").filter(Boolean).slice(0,2).map(x=>x[0]).join("").toUpperCase();
+const TEAMGRAD={"E-SCALE":"linear-gradient(135deg,#915fe3,#6f3fd0)","FENIX":"linear-gradient(135deg,#bc3eff,#8f2bcf)",
+  "ADFORCE":"linear-gradient(135deg,#3a86c8,#255e9a)","G.O.A.T":"linear-gradient(135deg,#b06bd8,#8a3fc0)",
+  "BULLS":"linear-gradient(135deg,#3aa88f,#248069)","COMERCIAL":"linear-gradient(135deg,#d0a24a,#b07f2c)",
+  "BACKOFFICE":"linear-gradient(135deg,#7a80d8,#565cc0)"};
+const TEAMPAL=["#915fe3","#3a86c8","#3aa88f","#d0a24a","#c8506a","#7a80d8","#b06bd8","#5aa06a"];
+function teamGrad(t){ if(TEAMGRAD[t])return TEAMGRAD[t];
+  let h=0; for(let i=0;i<(t||"").length;i++)h=(h*31+t.charCodeAt(i))>>>0;
+  const c=TEAMPAL[h%TEAMPAL.length]; return "linear-gradient(135deg,"+c+","+c+"cc)"; }
 function avaHTML(m,cls,style){
-  const c=cls+" "+(m.team==="E-SCALE"?"E":"F"), st=style||"", ini=esc(initials(m.name||""));
-  if(m.avatar) return `<span class="${c}" style="position:relative;overflow:hidden;${st}">${ini}<img src="${esc(m.avatar)}" alt="" loading="lazy" referrerpolicy="no-referrer" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover" onerror="this.remove()"></span>`;
-  return `<span class="${c}" style="${st}">${ini}</span>`;
+  const st=(style?style+";":"")+"background:"+teamGrad(m.team), ini=esc(initials(m.name||""));
+  if(m.avatar) return `<span class="${cls}" style="position:relative;overflow:hidden;${st}">${ini}<img src="${esc(m.avatar)}" alt="" loading="lazy" referrerpolicy="no-referrer" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover" onerror="this.remove()"></span>`;
+  return `<span class="${cls}" style="${st}">${ini}</span>`;
 }
+const mTeams=m=>(m&&m.teams&&m.teams.length)?m.teams:(m&&m.team?[m.team]:[]);
 const hidden=()=>{try{return new Set(JSON.parse(localStorage.getItem(HKEY)||"[]"))}catch(e){return new Set()}};
 const setHidden=s=>localStorage.setItem(HKEY,JSON.stringify([...s]));
 const hideTask=id=>{const s=hidden();s.add(id);setHidden(s)};
 const unhide=id=>{const s=hidden();s.delete(id);setHidden(s)};
-const inTeam=uid=>team==="all"||MEM[uid].team===team;
-const membersInTeam=()=>MODEL.members.filter(m=>team==="all"||m.team===team);
+const inTeam=uid=>team==="all"||(MEM[uid]&&mTeams(MEM[uid]).includes(team));
+const membersInTeam=()=>MODEL.members.filter(m=>team==="all"||mTeams(m).includes(team));
 
 function overdueAll(){const h=hidden();return MODEL.overdue.filter(t=>!h.has(t.id)&&inTeam(t.uid));}
 function overdueFor(uid){const h=hidden();return MODEL.overdue.filter(t=>t.uid===uid&&!h.has(t.id));}
@@ -506,7 +512,7 @@ function renderOverview(){
   const tbOt=(tb.onTime+tb.late)?Math.round(tb.onTime/(tb.onTime+tb.late)*100):null;
   const tbOtColor=tbOt==null?"var(--muted)":tbOt>=80?"var(--good)":tbOt>=50?"var(--high)":"var(--crit)";
   const tbPP=membersInTeam().reduce((s,m)=>s+postponeCount(m.uid),0);
-  const teamName=team==="all"?"E‑SCALE & FENIX":team;
+  const teamName=team==="all"?"Todos os times":team;
 
   $("root").innerHTML=`<div class="content"><div class="col">
     <div class="banner"><div class="bt">
@@ -576,7 +582,6 @@ function renderPerson(){
   $("topright").innerHTML=`<div class="stepbtns"><button class="btn" data-step="-1">↑ Anterior</button><button class="btn" data-step="1">Próximo ↓</button></div>`;
   const m=MEM[selUid],od=overdueFor(selUid).sort((a,b)=>b.days-a.days),odAll=overdueForAll(selUid);
   const hiddenN=odAll.length-od.length,mal=malformedFor(selUid),b=behavior(selUid),crit=od.filter(t=>t.days>30).length,td=todayFor(selUid);
-  const tc=m.team==="E-SCALE"?"E":"F";
   const otColor=b.otRate==null?"var(--muted)":b.otRate>=80?"var(--good)":b.otRate>=50?"var(--high)":"var(--crit)";
   const doneTot=b.onTime+b.late+b.noDue;
   const pp=postponesFor(selUid), ppTotal=pp.reduce((s,x)=>s+x.inRange,0);
@@ -599,7 +604,7 @@ function renderPerson(){
   $("root").innerHTML=`<div class="content"><div class="col">
     <div class="banner"><div class="bt">
       <h2>${esc(m.name)}</h2>
-      <p>${esc(m.role)} · <span class="teamchip">${m.team}</span></p>
+      <p>${esc(m.role)} · ${mTeams(m).map(t=>`<span class="teamchip">${esc(t)}</span>`).join(" ")}</p>
       <div class="cta"><button data-scroll="odsec">Ver ${od.length} em atraso</button>${mal.length?`<button class="ghost" data-scroll="malsec">${mal.length} mal cadastrada(s)</button>`:""}</div>
     </div>${avaHTML(m,"avatar","")}</div>
 
@@ -1381,20 +1386,31 @@ document.addEventListener("change",e=>{
 });
 function showToast(msg){$("toastmsg").textContent=msg;$("toast").hidden=false;clearTimeout(window._tt);window._tt=setTimeout(()=>$("toast").hidden=true,6000);}
 $("toastundo").addEventListener("click",()=>{if(window._last){unhide(window._last);window._last=null;$("toast").hidden=true;render();}});
+function buildTeamFilter(){
+  const set=new Set(); MODEL.members.forEach(m=>mTeams(m).forEach(t=>set.add(t)));
+  const CANON=["ADFORCE","G.O.A.T","BULLS","E-SCALE","COMERCIAL","FENIX","BACKOFFICE"];
+  const ordered=CANON.filter(t=>set.has(t)).concat([...set].filter(t=>!CANON.includes(t)).sort());
+  const btn=(v,l)=>`<button data-team="${esc(v)}" aria-pressed="${team===v}">${esc(l)}</button>`;
+  $("tfilter").innerHTML=btn("all","Todos")+ordered.map(t=>btn(t,t)).join("");
+}
+buildTeamFilter();
 render();
 </script>
 """
 
 def _demo_model():
     random.seed(7)
-    members=[(81464977,"Lucas Caldeira","E-SCALE","Head"),(55085676,"Carlos Barbosa","E-SCALE","Account"),
-        (54912242,"Ray Junio","E-SCALE","Gestor de Tráfego"),(87447111,"Izabela Galdino","E-SCALE","Account"),
-        (87413647,"Rafael Alves","E-SCALE","Gestor de Tráfego"),(206579907,"Thiago Zagnoli","FENIX","Head"),
-        (87318381,"Vinicius Andrade","FENIX","Account"),(60944498,"Vitor Dumont","FENIX","Gestor de Tráfego"),
-        (96672993,"Rafael Ramos","FENIX","Account"),(87448889,"Kaio Felipe","FENIX","Gestor de Tráfego"),
-        (118026171,"Patrick Lima","FENIX","Account"),(87445783,"Carlos Nobre","FENIX","Gestor de Tráfego"),
-        (96624276,"Tiago Lamêu","FENIX","Gestor de Tráfego")]
-    M=[{"uid":u,"name":n,"team":t,"role":r} for u,n,t,r in members]
+    members=[(81464977,"Lucas Caldeira","E-SCALE","Head",["E-SCALE"]),(55085676,"Carlos Barbosa","E-SCALE","Account",["E-SCALE"]),
+        (54912242,"Ray Junio","E-SCALE","Gestor de Tráfego",["E-SCALE"]),(87447111,"Izabela Galdino","E-SCALE","Account",["E-SCALE","ADFORCE"]),
+        (87413647,"Rafael Alves","E-SCALE","Gestor de Tráfego",["E-SCALE"]),(206579907,"Thiago Zagnoli","FENIX","Head",["FENIX"]),
+        (87318381,"Vinicius Andrade","FENIX","Account",["FENIX"]),(60944498,"Vitor Dumont","FENIX","Gestor de Tráfego",["FENIX","G.O.A.T"]),
+        (96672993,"Rafael Ramos","FENIX","Account",["FENIX"]),(87448889,"Kaio Felipe","FENIX","Gestor de Tráfego",["FENIX"]),
+        (118026171,"Patrick Lima","FENIX","Account",["FENIX"]),(87445783,"Carlos Nobre","FENIX","Gestor de Tráfego",["FENIX"]),
+        (96624276,"Tiago Lamêu","FENIX","Gestor de Tráfego",["FENIX"]),
+        (300001,"Gabriel Marcuci","G.O.A.T","Account",["G.O.A.T"]),(300002,"Pedro Reis","G.O.A.T","Gestor de Tráfego",["G.O.A.T"]),
+        (300003,"Bianca Alves","ADFORCE","Account",["ADFORCE"]),(300004,"Rodrigo Sá","ADFORCE","Gestor de Tráfego",["ADFORCE"]),
+        (300005,"Marina Costa","BULLS","Account",["BULLS"]),(300006,"Igor Nunes","BULLS","Gestor de Tráfego",["BULLS"])]
+    M=[{"uid":u,"name":n,"team":t,"role":r,"teams":ts} for u,n,t,r,ts in members]
     lists=["Gestão de Projetos","Processos de Artes","Planejamento e Gestão de CRM","Envio de NPS","Otimização de Campanhas","Kickoff"]
     overdue=[];mal=[];events=[]
     for m in M:
