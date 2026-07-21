@@ -963,31 +963,51 @@ function renderChurnHistory(C,m,scope){
   const anos=[...new Set(allMeses.map(k=>k.slice(0,4)))];
   const meses=churnYear==="all"?allMeses:allMeses.filter(k=>k.startsWith(churnYear));
   const allSquads=(H.squads||["TOTAL"]).filter(s=>s!=="—");
-  // escopo
-  let squads=allSquads, chartSquad="TOTAL", tit="agência (TOTAL)", scopedMissing=false;
-  if(scope.slice(0,3)==="sq:"){const sn=scope.slice(3);tit=sn;
-    if(allSquads.includes(sn)){squads=[sn,"TOTAL"];chartSquad=sn;}else{squads=["TOTAL"];chartSquad="TOTAL";scopedMissing=true;}}
-  else if(scope.slice(0,3)==="pp:"){const p=(C.people||[]).find(x=>x.uid===+scope.slice(3));const ps=new Set((p&&p.squads)||[]);
-    const ins=allSquads.filter(s=>ps.has(s));squads=ins.concat(["TOTAL"]);chartSquad=ins[0]||"TOTAL";tit=(p&&p.name)||"pessoa";if(!ins.length)scopedMissing=true;}
+  const curMes=(MODEL.window&&MODEL.window.to||"").slice(0,7);
   const zc=v=>v==null?'var(--muted)':v<=m.sup?'var(--good)':v<=m.meta?'var(--high)':'var(--crit)';
   const cell=v=>v==null?'<span style="color:var(--muted)">—</span>':`<span class="hcell" style="background:color-mix(in srgb,${zc(v)} 16%,transparent);color:${zc(v)}">${v.toFixed(1).replace('.',',')}%</span>`;
-  const batidas=s=>{let hit=0,tot=0;meses.forEach(k=>{const v=H.meses[k]?H.meses[k][s]:null;if(v!=null){tot++;if(v<=m.meta)hit++;}});return tot?hit+'/'+tot:'—';};
-  const totVals=meses.map(k=>[k,H.meses[k]?H.meses[k][chartSquad]:null]).filter(([,v])=>v!=null);
+  const squadSeries=s=>(k=>H.meses&&H.meses[k]?(H.meses[k][s]??null):null);
+  // define as linhas conforme o escopo — a 1a linha é a "principal" (vira o gráfico)
+  let rows=[], primaryLabel="agência (TOTAL)", scopedMissing=false, isPerson=false, personNote=false;
+  if(scope.slice(0,3)==="pp:"){
+    isPerson=true;
+    const p=(C.people||[]).find(x=>x.uid===+scope.slice(3));
+    const pUid=String(p?p.uid:scope.slice(3)), pName=(p&&p.name)||"pessoa";
+    const pLive=p?p.churnPct:null;   // churn real da pessoa no mês corrente (ao vivo)
+    const pSquads=allSquads.filter(s=>p&&(p.squads||[]).includes(s));
+    // série da PESSOA: mês corrente = valor ao vivo; meses passados = histórico por pessoa (— se não houver)
+    const personSeries=k=>(k===curMes&&pLive!=null)?pLive:((H.pessoas&&H.pessoas[k])?(H.pessoas[k][pUid]??null):null);
+    rows.push({label:pName,series:personSeries,me:true});
+    pSquads.forEach(s=>rows.push({label:s+" · squad",series:squadSeries(s)}));
+    rows.push({label:"TOTAL agência",series:squadSeries("TOTAL")});
+    primaryLabel=pName; personNote=true;
+  }else if(scope.slice(0,3)==="sq:"){
+    const sn=scope.slice(3); primaryLabel=sn;
+    if(allSquads.includes(sn)){rows.push({label:sn,series:squadSeries(sn)});rows.push({label:"TOTAL",series:squadSeries("TOTAL")});}
+    else{rows.push({label:"TOTAL",series:squadSeries("TOTAL")});scopedMissing=true;}
+  }else{
+    allSquads.filter(s=>s!=="TOTAL").forEach(s=>rows.push({label:s,series:squadSeries(s)}));
+    rows.push({label:"TOTAL",series:squadSeries("TOTAL")});
+  }
+  const primary=rows[0]||{label:"TOTAL",series:squadSeries("TOTAL")};
+  const totVals=meses.map(k=>[k,primary.series(k)]).filter(([,v])=>v!=null);
   const maxV=Math.max(m.meta*1.5,...totVals.map(([,v])=>v),8);
+  const batidas=row=>{let hit=0,tot=0;meses.forEach(k=>{const v=row.series(k);if(v!=null){tot++;if(v<=m.meta)hit++;}});return tot?hit+'/'+tot:'—';};
   const yrBtn=(y,l)=>`<button class="cbtn" data-churn-year="${y}" aria-pressed="${churnYear===y}">${l}</button>`;
   const hasData=meses.length>0;
   $("root").innerHTML=`<div class="col">
     ${churnNav(scopeLabel(scope,C))}
-    <div class="banner"><div class="bt"><h2>Histórico de churn${scope!=="all"?' — '+esc(tit):''}</h2>
-      <p>Churn % por mês — importado da planilha base. Verde ≤ super (${m.sup}%) · amarelo ≤ meta (${m.meta}%) · vermelho acima.</p>
+    <div class="banner"><div class="bt"><h2>Histórico de churn${scope!=="all"?' — '+esc(primaryLabel):''}</h2>
+      <p>Churn % por mês. Verde ≤ super (${m.sup}%) · amarelo ≤ meta (${m.meta}%) · vermelho acima.</p>
       <div class="cta" style="gap:6px">${yrBtn('all','Todos')}${anos.map(y=>yrBtn(y,y)).join('')}</div></div><div class="avatar">📚</div></div>
-    ${scopedMissing?`<div class="card"><div class="pad"><div class="note">📅 <b>${esc(tit)}</b> ainda não tem série histórica (a planilha base importada tinha só ADFORCE, G.O.A.T, BULLS e E-SCALE). A partir de agora o painel grava o churn deste squad a cada fechamento mensal — o histórico dele começa a acumular do mês atual em diante.</div></div></div>`:(!hasData?'<div class="note">Sem histórico importado ainda.</div>':`
-    <div class="card"><div class="card-h"><h3>Evolução — ${esc(chartSquad==="TOTAL"?"agência (TOTAL)":tit)}</h3><div class="r">${monthLbl(meses[0])} → ${monthLbl(meses[meses.length-1])}</div></div>
-      <div class="pad"><div class="chart" style="min-height:150px">${totVals.map(([k,v])=>`<div class="colwrap"><div class="coln">${v.toFixed(1).replace('.',',')}</div><div class="bar-col" style="height:${Math.max(4,v/maxV*130)}px;background:transparent"><div class="seg" style="flex:1;background:${zc(v)}"></div></div><div class="collbl">${monthLbl(k)}</div></div>`).join('')}</div>
+    ${personNote?`<div class="note">👤 Série do churn <b>da pessoa</b> (não do squad). O mês corrente vem ao vivo da carteira dela; meses anteriores só existem de <b>${monthLbl(curMes)}</b> em diante — antes o painel guardava histórico só por squad, então aparecem como <b>—</b>. A linha do squad fica logo abaixo, como contexto.</div>`:''}
+    ${scopedMissing?`<div class="card"><div class="pad"><div class="note">📅 <b>${esc(primaryLabel)}</b> ainda não tem série histórica (a planilha base importada tinha só ADFORCE, G.O.A.T, BULLS e E-SCALE). A partir de agora o painel grava o churn deste squad a cada fechamento mensal.</div></div></div>`:(!hasData?'<div class="note">Sem histórico ainda.</div>':`
+    <div class="card"><div class="card-h"><h3>Evolução — ${esc(primaryLabel)}</h3><div class="r">${monthLbl(meses[0])} → ${monthLbl(meses[meses.length-1])}</div></div>
+      <div class="pad">${totVals.length?`<div class="chart" style="min-height:150px">${totVals.map(([k,v])=>`<div class="colwrap"><div class="coln">${v.toFixed(1).replace('.',',')}</div><div class="bar-col" style="height:${Math.max(4,v/maxV*130)}px;background:transparent"><div class="seg" style="flex:1;background:${zc(v)}"></div></div><div class="collbl">${monthLbl(k)}</div></div>`).join('')}</div>`:'<div class="empty">Ainda sem meses com dado para esta série.</div>'}
         <div class="note">Cada barra é o churn no mês. Cor pela zona de meta (super ${m.sup}% / meta ${m.meta}%).</div></div></div>
-    <div class="card"><div class="card-h"><h3>Matriz churn % — squad × mês</h3><div class="r">meta batidas na última coluna</div></div>
-      <div class="tblwrap"><table class="hmatrix"><thead><tr><th>Squad</th>${meses.map(k=>`<th>${monthLbl(k)}</th>`).join('')}<th>Batidas</th></tr></thead>
-      <tbody>${squads.map(s=>`<tr><td>${esc(s)}</td>${meses.map(k=>`<td>${cell(H.meses[k]?H.meses[k][s]:null)}</td>`).join('')}<td><b>${batidas(s)}</b></td></tr>`).join('')}</tbody></table></div></div>`)}
+    <div class="card"><div class="card-h"><h3>Matriz churn % — ${isPerson?'pessoa e squad':'squad'} × mês</h3><div class="r">meta batidas na última coluna</div></div>
+      <div class="tblwrap"><table class="hmatrix"><thead><tr><th>${isPerson?'Linha':'Squad'}</th>${meses.map(k=>`<th>${monthLbl(k)}</th>`).join('')}<th>Batidas</th></tr></thead>
+      <tbody>${rows.map(r=>`<tr${r.me?' style="background:color-mix(in srgb,var(--brand) 8%,transparent)"':''}><td>${r.me?'<b>':''}${esc(r.label)}${r.me?'</b>':''}</td>${meses.map(k=>`<td>${cell(r.series(k))}</td>`).join('')}<td><b>${batidas(r)}</b></td></tr>`).join('')}</tbody></table></div></div>`)}
   </div>`;
 }
 

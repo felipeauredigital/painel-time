@@ -590,6 +590,16 @@ def record_churn_history(churn, hist, today):
             order.append(S["squad"])
     month["TOTAL"] = churn["totals"]["churnPct"]
     hist["squads"] = order + ["TOTAL"]
+    # churn% por pessoa no mês (série própria de cada um — passa a acumular do mês atual em diante)
+    hist.setdefault("pessoas", {})
+    hist.setdefault("pessoasNomes", {})
+    pmes = hist["pessoas"].setdefault(key, {})
+    for p in churn.get("people", []):
+        if (p.get("nAtivo", 0) + p.get("nAviso", 0)) == 0:
+            continue
+        uid = str(p["uid"])
+        pmes[uid] = p["churnPct"]
+        hist["pessoasNomes"][uid] = p.get("name") or hist["pessoasNomes"].get(uid) or uid
     json.dump(hist, open(os.path.join(DATA, "churn_history.json"), "w", encoding="utf-8"), ensure_ascii=False)
     return hist
 
