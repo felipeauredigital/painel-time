@@ -757,13 +757,12 @@ def analyze(tasks, record=False):
 
     avatars = _load(os.path.join(DATA, "avatars.json"), {})
     postpones = aggregate_postponements()
-    # quem NÃO tem nenhuma tarefa (atraso/hoje/concluída/mal cadastrada) sai do painel — remove
-    # ex-funcionários e quem só constava na carteira. Adiamentos/criações são histórico e não contam
-    # como "ter tarefa" (uma tarefa ainda aberta já entra por atraso/hoje; concluída entra por done).
+    # só aparece quem tem PENDÊNCIA ATUAL: tarefa em atraso, pra hoje, ou card mal cadastrado.
+    # Concluídas do histórico e adiamentos NÃO contam — senão gente sem trabalho atual (ou que já
+    # saiu da empresa) fica no painel só por ter concluído algo tempos atrás.
     com_tarefa = set()
     for x in overdue:      com_tarefa.add(x["uid"])
     for x in today_tasks:  com_tarefa.add(x["uid"])
-    for x in done:         com_tarefa.add(x["uid"])
     for x in malformed:
         if x.get("uid"):   com_tarefa.add(x["uid"])
     members = [{"uid": r["uid"], "name": r["name"], "team": r["team"], "teams": r["teams"],
