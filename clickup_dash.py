@@ -88,8 +88,9 @@ SQUAD_OPTION_TEAM = {  # option_id -> time (squad) — usado p/ vincular a taref
 }
 
 # ---- Roster dos times em TAREFAS: vem da lista "Gestão de Projetos" (não da de empresas) ----
-PROJETOS_LIST = "900702240138"                    # lista "Gestão de Projetos" (espaço Operacional)
-PROJ_INATIVO  = {"finalizado", "recisão", "recisao"}   # projeto encerrado: não define time (ex.: ADFORCE do Lucas)
+PROJETOS_LIST = "900702240138"   # lista "Gestão de Projetos" (espaço Operacional)
+# Só o grupo "Fechado" (status FINALIZADO, type="closed") não define time. Todos os outros contam —
+# EM PROGRESSO, EM BARREIRA, ATIVO, PROJETO PAUSADO, AVISO e RECISÃO. (ex.: ADFORCE do Lucas = Finalizado)
 
 # ---- Controle de churn: lista "Gestão de empresas" e seus campos ----
 EMPRESAS_LIST = "223068147"
@@ -630,8 +631,7 @@ def roster_from_projetos(tasks):
     for t in tasks:
         if (t.get("list") or {}).get("id") != PROJETOS_LIST:
             continue
-        st = ((t.get("status") or {}).get("status") or "").lower()
-        if st in PROJ_INATIVO:
+        if ((t.get("status") or {}).get("type")) == "closed":   # só "Fechado" (Finalizado) não conta
             continue
         squad = _cf_squad(t) or "—"
         if squad == "—" or squad in EXCLUDE_SQUADS:
