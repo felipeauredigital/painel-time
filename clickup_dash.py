@@ -106,10 +106,11 @@ SQUAD_ORDER = {0: "ADFORCE", 1: "G.O.A.T", 2: "BULLS", 3: "VALHALLA",
 EXCLUDE_SQUADS = {"VALHALLA", "COMERCIAL", "BACKOFFICE"}
 SQUAD_ALL = ["ADFORCE", "G.O.A.T", "BULLS", "E-SCALE", "FENIX"]
 # Situação do cliente (status da tarefa) → grupo de churn:
-ST_ATIVO   = {"ativo", "inadimplente", "pendência adm"}          # carteira ativa (base)
-ST_ONBOARD = {"processo de entrada", "aguardando inicio"}        # entrando (ainda não na base)
-ST_AVISO   = {"aviso"}                                           # em aviso (risco de churn)
-ST_CHURN   = {"rescisão", "finalizado"}                          # saíram
+ST_ATIVO   = {"ativo"}                                           # carteira ativa (base) — só ativo
+ST_ONBOARD = {"processo de entrada", "aguardando inicio"}       # entrando (ainda não na base)
+# Churn = status de churn. O MÊS de cada um vem da Data de Saída (não do status). Aviso/rescisão/
+# pendência adm/inadimplente = saindo; finalizado = já saiu (aviso acabou). Regra: STATUS + DATA DE SAÍDA.
+ST_CHURN   = {"aviso", "rescisão", "pendência adm", "inadimplente", "finalizado"}
 ST_PAUSA   = {"projeto pausado"}                                 # pausado
 
 TZ = datetime.timezone(datetime.timedelta(hours=-3))  # Brasília
@@ -409,12 +410,16 @@ def is_company(t):
         return False
     return bool(_cf_currency(t, CF_FEE) > 0 or _cf_date(t, CF_ENTRADA) or _cf_squad(t))
 
-def build_churn(empresas, variavel=None, reducoes=None, reducoes_list=None):
-    """Monta o modelo de churn: fee ativo x em aviso, por squad e por pessoa (Account/Gestor).
-    churn% = (fee em aviso + reduções lançadas) / (fee ativo + fee em aviso) — % do faturamento em risco.
-    variavel: {"mes":..,"bySquad":{squad:{"variavel":R$}}} p/ a base Fee+Variável.
-    reducoes: {squad: R$} de reduções/descontos lançados no mês (entram no churn como valor em risco)."""
-    clients, people = [], {}
+def build_churn(empresas, variavel=None, reducoes=None, reducoes_list=None, today=None):
+    """Monta o modelo de churn por STATUS + DATA DE SAÍDA.
+    - Base (carteira ativa) = só clientes 'ativo'.
+    - Churn = status {aviso, rescisão, pendência adm, inadimplente, finalizado}; o MÊS de cada churn
+      vem da Data de Saída: mês corrente = churn do mês (entra no %); futuro = projeção; passado = já saiu.
+    - churn% do mês = (fee que sai no mês + reduções) / (fee ativo + fee que sai no mês).
+    - Cliente em status de churn SEM Data de Saída → sinalizado (semDataSaida), não some do painel."""
+    today = today or datetime.datetime.now(TZ).date()
+    cur_mes = "%04d-%02d" % (today.year, today.month)
+    clients, people, sem_data = [], {}, []
     sq = {}
 
     def squad_bucket(s):
@@ -445,13 +450,29 @@ def build_churn(empresas, variavel=None, reducoes=None, reducoes_list=None):
             continue
         acc = _cf_users(t, CF_ACCOUNT)
         ges = _cf_users(t, CF_GESTOR)
-        grp = ("ativo" if st in ST_ATIVO else "aviso" if st in ST_AVISO
-               else "churn" if st in ST_CHURN else "onboard" if st in ST_ONBOARD
-               else "pausa" if st in ST_PAUSA else "outro")
         saida = _cf_date(t, CF_SAIDA)
         aviso = _cf_date(t, CF_AVISO)
+        saida_mes = saida[:7] if saida else None
+        # STATUS + DATA DE SAÍDA definem o grupo:
+        if st in ST_ATIVO:
+            grp = "ativo"
+        elif st in ST_ONBOARD:
+            grp = "onboard"
+        elif st in ST_PAUSA:
+            grp = "pausa"
+        elif st in ST_CHURN:
+            if not saida_mes:
+                grp = "semdata"                       # status de churn sem Data de Saída → sinalizar
+            elif saida_mes == cur_mes:
+                grp = "aviso"                          # churn DESTE mês (entra no churn%)
+            elif saida_mes > cur_mes:
+                grp = "futuro"                         # churn de mês futuro (projeção)
+            else:
+                grp = "saiu"                           # Data de Saída no passado → já saiu (histórico)
+        else:
+            grp = "outro"
         clients.append({"id": t["id"], "name": (t.get("name") or "").strip(), "fee": round(fee, 2),
-                        "status": st, "grp": grp, "squad": squad,
+                        "status": st, "grp": grp, "squad": squad, "saidaMes": saida_mes,
                         "account": acc[0]["name"] if acc else None, "accountUid": acc[0]["uid"] if acc else None,
                         "gestor": ges[0]["name"] if ges else None, "gestorUid": ges[0]["uid"] if ges else None,
                         "accountUids": [u["uid"] for u in acc], "gestorUids": [u["uid"] for u in ges],
@@ -467,16 +488,21 @@ def build_churn(empresas, variavel=None, reducoes=None, reducoes_list=None):
                     p["accFee"] += fee
                 else:
                     p["gesFee"] += fee
-        elif grp == "aviso":
+        elif grp == "aviso":                           # churn deste mês
             S["feeAviso"] += fee; S["nAviso"] += 1
             for u, r in involved:
                 p = person(u, r, squad); p["feeAviso"] += fee; p["nAviso"] += 1
-        elif grp == "churn":
+        elif grp == "saiu":                            # já saiu (Data de Saída passada)
             S["feeChurn"] += fee; S["nChurn"] += 1
             for u, r in involved:
                 p = person(u, r, squad); p["feeChurn"] += fee; p["nChurn"] += 1
         elif grp == "onboard":
             S["nOnboard"] += 1
+        elif grp == "semdata":
+            sem_data.append({"id": t["id"], "name": (t.get("name") or "").strip(), "squad": squad,
+                             "status": st, "fee": round(fee, 2),
+                             "account": acc[0]["name"] if acc else None,
+                             "gestor": ges[0]["name"] if ges else None})
 
     def churn_pct(atv, avi):
         base = atv + avi
@@ -532,24 +558,17 @@ def build_churn(empresas, variavel=None, reducoes=None, reducoes_list=None):
               "nChurn": sum(S["nChurn"] for S in squads), "churnPct": churn_pct(tot_atv, tot_avi + tot_red),
               "churnPctVar": churn_pct(tot_atv + tot_var, tot_avi + tot_red)}
 
-    # ---- Projeção: cliente em aviso hoje sai ~30 dias depois (modelo da planilha "Projetos 01/MM").
-    # TODO cliente em aviso entra na projeção — mesmo sem data do aviso (vai p/ "sem-data"), para casar
-    # exatamente com o churn/carteira das pessoas (senão a projeção "não busca todos os churns").
+    # ---- Projeção: churn atribuído ao MÊS DA DATA DE SAÍDA (mês corrente + futuros).
+    # Cada cliente em status de churn com Data de Saída >= mês corrente entra no mês da sua saída.
     projection = {}
     for c in clients:
-        if c["grp"] != "aviso":
+        if c["grp"] not in ("aviso", "futuro"):     # mês corrente + meses futuros
             continue
-        dt = None
-        if c.get("aviso"):
-            try:
-                dt = datetime.date.fromisoformat(c["aviso"]) + datetime.timedelta(days=30)
-            except Exception:
-                dt = None
-        key = ("%04d-%02d" % (dt.year, dt.month)) if dt else "sem-data"
+        key = c.get("saidaMes") or "sem-data"
         pr = projection.setdefault(key, {"mes": key, "n": 0, "fee": 0.0, "clients": []})
         pr["n"] += 1; pr["fee"] += c["fee"]
         pr["clients"].append({"name": c["name"], "squad": c["squad"], "fee": round(c["fee"], 2),
-                              "churnEm": dt.isoformat() if dt else None,
+                              "churnEm": c.get("saida"), "status": c.get("status"),
                               "account": c.get("account"), "accountUid": c.get("accountUid"),
                               "gestor": c.get("gestor"), "gestorUid": c.get("gestorUid"),
                               "accountUids": c.get("accountUids") or [], "gestorUids": c.get("gestorUids") or []})
@@ -559,7 +578,7 @@ def build_churn(empresas, variavel=None, reducoes=None, reducoes_list=None):
 
     return {"totals": totals, "squads": squads, "people": ppl, "clients": clients,
             "squadOrder": SQUAD_ALL, "projection": projection, "variavelMes": (variavel or {}).get("mes"),
-            "reducoes": reducoes_list or []}
+            "reducoes": reducoes_list or [], "semDataSaida": sem_data, "mesAtual": cur_mes}
 
 def record_fee_snapshot(churn, today):
     hist = _load(FEEHIST, {})
@@ -791,7 +810,7 @@ def analyze(tasks, record=False):
         red_by[s] = round(float(red_by.get(s, 0.0)) + float(e.get("valor") or 0.0), 2)
         red_list.append({"cliente": e.get("cliente"), "squad": s, "valor": round(float(e.get("valor") or 0.0), 2),
                          "motivo": e.get("motivo"), "data": e.get("data"), "mes": e.get("mes") or mes_atual})
-    churn = build_churn(empresas, variavel, red_by, red_list)
+    churn = build_churn(empresas, variavel, red_by, red_list, today=today)
     if record:
         record_fee_snapshot(churn, today)
         record_churn_history(churn, churn_history, today)   # acumula churn% por squad no mês atual

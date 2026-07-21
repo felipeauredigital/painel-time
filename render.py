@@ -732,7 +732,7 @@ function renderChurn(){
   const tPct=(tAtv+tAvi)?+(tAvi/(tAtv+tAvi)*100).toFixed(2):0, z=zoneOf(tPct,m);
   const nAtivo=squads.reduce((s,x)=>s+x.nAtivo,0), nAviso=squads.reduce((s,x)=>s+x.nAviso,0);
   const avisoClients=(C.clients||[]).filter(c=>c.grp==="aviso"&&!hiddenSq.has(c.squad)).sort((a,b)=>b.fee-a.fee);
-  const saidas=(C.clients||[]).filter(c=>c.grp==="churn"&&c.churnDate&&inRng(c.churnDate)&&!hiddenSq.has(c.squad)).sort((a,b)=>a.churnDate<b.churnDate?1:-1);
+  const saidas=(C.clients||[]).filter(c=>c.grp==="saiu"&&c.churnDate&&inRng(c.churnDate)&&!hiddenSq.has(c.squad)).sort((a,b)=>a.churnDate<b.churnDate?1:-1);
   const perdidoP=saidas.reduce((s,c)=>s+c.fee,0);
   const people=(C.people||[]).filter(p=>(p.nAtivo+p.nAviso)>0&&(p.squads||[]).some(s=>!hiddenSq.has(s))).sort((a,b)=>b.churnPct-a.churnPct||b.feeAviso-a.feeAviso);
   const fh=Object.entries(MODEL.feeHistory||{}).filter(([d])=>inRng(d)).sort((a,b)=>a[0]<b[0]?-1:1);
@@ -747,14 +747,15 @@ function renderChurn(){
     ${churnNav()}
     <div class="banner"><div class="bt">
       <h2>Controle de churn — agência</h2>
-      <p>${BRL(tAtv)} de ${useVar?'fee + variável':'fee ativo'} sob gestão · ${BRL(tAvi)} em aviso (${nAviso} cliente(s)) — churn de <b>${tPct}%</b> do faturamento. Meta ≤ ${m.meta}% · super meta ≤ ${m.sup}%.</p>
+      <p>${BRL(tAtv)} de ${useVar?'fee + variável':'fee ativo'} sob gestão · <b>${BRL(tAvi)}</b> de churn em ${projMesLbl(C.mesAtual||"")} (${nAviso} cliente(s)) — <b>${tPct}%</b> do faturamento. O mês do churn vem da Data de Saída. Meta ≤ ${m.meta}% · super meta ≤ ${m.sup}%.</p>
     </div><div class="avatar">📉</div></div>
+    ${(C.semDataSaida||[]).length?`<div class="note" style="border-left-color:var(--crit)">⚠️ <b>${C.semDataSaida.length} cliente(s) em status de churn sem Data de Saída</b> — sem a data não dá pra saber em que mês o churn entra, então ficam de fora da conta. Preencha a Data de Saída no ClickUp: ${C.semDataSaida.slice(0,8).map(c=>esc(c.name)+" ("+esc(c.status)+")").join(" · ")}${C.semDataSaida.length>8?" …":""}.</div>`:''}
 
     <div class="kpis">
       <div class="kpi"><div class="n">${BRL(tFee)}</div><div class="l">Fee ativo</div><div class="s">${nAtivo} clientes</div></div>
       <div class="kpi"><div class="n" style="color:var(--gold-2)">${BRL(tVar)}</div><div class="l">Variável</div><div class="s">comissão do mês</div></div>
       <div class="kpi"><div class="n">${BRL(tFee+tVar)}</div><div class="l">Fee + Variável</div><div class="s">base total</div></div>
-      <div class="kpi"><div class="n" style="color:var(--crit)">${BRL(tAvi)}</div><div class="l">Fee em aviso</div><div class="s">${nAviso} clientes</div></div>
+      <div class="kpi"><div class="n" style="color:var(--crit)">${BRL(tAvi)}</div><div class="l">Churn do mês</div><div class="s">${nAviso} saindo em ${projMesLbl(C.mesAtual||"")}</div></div>
       <div class="kpi"><div class="n" style="color:${ZONEC[z]}">${tPct}%</div><div class="l">Churn (${useVar?'fee+var':'fee'})</div><div class="s"><span class="zbadge ${z}">${ZONEL[z]}</span></div></div>
       <div class="kpi"><div class="n">${BRL(perdidoP)}</div><div class="l">Saídas no período</div><div class="s">${saidas.length} cliente(s)</div></div>
     </div>
@@ -777,12 +778,12 @@ function renderChurn(){
         <td class="r fee">${BRL(p.feeAtivo)}</td><td class="r fee" style="color:${p.variavel?'var(--gold-2)':'var(--muted)'}">${p.variavel?BRL(p.variavel):"—"}</td><td class="r fee" style="color:${p.feeAviso?'var(--crit)':'var(--muted)'}">${p.feeAviso?BRL(p.feeAviso):"—"}</td>
         <td class="r"><b style="color:${ZONEC[zz]}">${CP(p)}%</b></td><td>${attainBar(CP(p),m)}</td></tr>`;}).join("")||'<tr><td colspan="7" class="empty">Sem pessoas.</td></tr>'}</tbody></table></div></div>
 
-    <div class="card"><div class="card-h"><h3>Clientes em aviso (risco de churn)</h3><div class="r">${avisoClients.length} · ${BRL(tAvi)}</div></div>
-      ${avisoClients.length?`<div class="tblwrap"><table class="ctable"><thead><tr><th>Cliente</th><th>Squad</th><th>Account</th><th>Gestor</th><th class="r">Fee</th><th class="r">Aviso</th></tr></thead>
+    <div class="card"><div class="card-h"><h3>Churn deste mês (${projMesLbl(C.mesAtual||"")})</h3><div class="r">Data de Saída em ${projMesLbl(C.mesAtual||"")} · ${avisoClients.length} · ${BRL(tAvi)}</div></div>
+      ${avisoClients.length?`<div class="tblwrap"><table class="ctable"><thead><tr><th>Cliente</th><th>Squad</th><th>Status</th><th>Account</th><th>Gestor</th><th class="r">Fee</th><th class="r">Data de Saída</th></tr></thead>
       <tbody>${avisoClients.map(c=>`<tr><td><a class="cname" href="https://app.clickup.com/t/${c.id}" target="_blank" rel="noopener">${esc(c.name)}</a></td>
-        <td><span class="sqtag">${esc(c.squad)}</span></td><td>${esc(c.account||"—")}</td><td>${esc(c.gestor||"—")}</td>
-        <td class="r fee" style="color:var(--crit)">${BRL(c.fee)}</td><td class="r">${c.aviso?fmtBR(c.aviso):"—"}</td></tr>`).join("")}</tbody></table></div>`
-      :'<div class="empty">Nenhum cliente em aviso 🎉</div>'}</div>
+        <td><span class="sqtag">${esc(c.squad)}</span></td><td>${esc(c.status||"—")}</td><td>${esc(c.account||"—")}</td><td>${esc(c.gestor||"—")}</td>
+        <td class="r fee" style="color:var(--crit)">${BRL(c.fee)}</td><td class="r">${c.saida?fmtBR(c.saida):"—"}</td></tr>`).join("")}</tbody></table></div>`
+      :'<div class="empty">Nenhum churn com Data de Saída neste mês 🎉</div>'}</div>
 
     <div class="card"><div class="card-h"><h3>Saídas no período</h3><div class="r">${fmtBR(dFrom)} → ${fmtBR(dTo)} · ${saidas.length} · ${BRL(perdidoP)}</div></div>
       ${saidas.length?`<div class="tblwrap"><table class="ctable"><thead><tr><th>Cliente</th><th>Squad</th><th>Account</th><th class="r">Fee</th><th class="r">Saída</th></tr></thead>
@@ -817,7 +818,7 @@ function renderChurnSquad(name,C,m,hiddenSq){
   const cls=(C.clients||[]).filter(c=>c.squad===name);
   const ativos=cls.filter(c=>c.grp==="ativo").sort((a,b)=>b.fee-a.fee);
   const aviso=cls.filter(c=>c.grp==="aviso").sort((a,b)=>b.fee-a.fee);
-  const saidas=cls.filter(c=>c.grp==="churn"&&c.churnDate&&inRng(c.churnDate)).sort((a,b)=>a.churnDate<b.churnDate?1:-1);
+  const saidas=cls.filter(c=>c.grp==="saiu"&&c.churnDate&&inRng(c.churnDate)).sort((a,b)=>a.churnDate<b.churnDate?1:-1);
   const perdido=saidas.reduce((x,c)=>x+c.fee,0), zz=zoneOf(s.churnPct,m);
   const PBYU={};(C.people||[]).forEach(p=>PBYU[p.uid]=p);
   const pmap={};
@@ -878,7 +879,7 @@ function renderChurnPerson(uid,C,m,hiddenSq){
   const name=(pref&&pref.name)||(cls[0]&&(cIsAcc(cls[0],uid)?cls[0].account:cls[0].gestor))||"—";
   const ativos=cls.filter(c=>c.grp==="ativo").sort((a,b)=>b.fee-a.fee);
   const aviso=cls.filter(c=>c.grp==="aviso").sort((a,b)=>b.fee-a.fee);
-  const saidas=cls.filter(c=>c.grp==="churn"&&c.churnDate&&inRng(c.churnDate)).sort((a,b)=>a.churnDate<b.churnDate?1:-1);
+  const saidas=cls.filter(c=>c.grp==="saiu"&&c.churnDate&&inRng(c.churnDate)).sort((a,b)=>a.churnDate<b.churnDate?1:-1);
   const feeAtv=ativos.reduce((x,c)=>x+c.fee,0), feeAvi=aviso.reduce((x,c)=>x+c.fee,0);
   const pct=churnPctCalc(feeAtv,feeAvi), zz=zoneOf(pct,m);
   const roleOf=c=>(cIsAcc(c,uid)&&cIsGes(c,uid))?"Account + Gestor":cIsAcc(c,uid)?"Account":"Gestor";
@@ -1026,12 +1027,12 @@ function renderChurnProjection(C,m,hiddenSq,scope){
   $("root").innerHTML=`<div class="col">
     ${churnNav(scopeLabel(scope,C))}
     <div class="banner"><div class="bt"><h2>Projeção de churn${scope!=="all"?' — '+esc(scopeLabel(scope,C).replace(/^(Squad|Pessoa): /,'')):''}</h2>
-      <p>Cliente em <b>aviso</b> hoje sai ~30 dias depois. Projeção: <b>${totalN}</b> cliente(s) · <b>${BRL(totalFee)}</b> saindo nos próximos meses.</p></div><div class="avatar">📅</div></div>
+      <p>Cada cliente em churn entra no mês da sua <b>Data de Saída</b>. Projeção: <b>${totalN}</b> cliente(s) · <b>${BRL(totalFee)}</b> saindo do mês atual em diante.</p></div><div class="avatar">📅</div></div>
     <div class="kpis">${proj.map(p=>`<div class="kpi"><div class="n" style="color:var(--crit)">${p.n}</div><div class="l">Churn projetado · ${projMesLbl(p.mes)}</div><div class="s">${BRL(p.fee)}</div></div>`).join('')||'<div class="kpi"><div class="n">0</div><div class="l">Nada projetado</div><div class="s">Sem clientes em aviso</div></div>'}</div>
     ${proj.map(p=>`<div class="card"><div class="card-h"><h3>Projeção ${projMesLbl(p.mes)}</h3><div class="r">${p.n} cliente(s) · ${BRL(p.fee)}</div></div>
       <div class="tblwrap"><table class="ctable"><thead><tr><th>Cliente</th><th>Squad</th><th class="r">Fee</th><th class="r">Sai em</th></tr></thead>
       <tbody>${p.clients.slice().sort((a,b)=>b.fee-a.fee).map(c=>`<tr><td>${esc(c.name)}</td><td><span class="sqtag">${esc(c.squad)}</span></td><td class="r fee" style="color:var(--crit)">${BRL(c.fee)}</td><td class="r">${c.churnEm?fmtBR(c.churnEm):'—'}</td></tr>`).join('')}</tbody></table></div></div>`).join('')}
-    <div class="note">Modelo: cada cliente em <b>aviso</b> conta como churn ~30 dias após a data do aviso (mesma lógica da planilha: "Projetos 01/MM → Churn N"). O churn do aviso de hoje "escorrega" para o mês seguinte.</div>
+    <div class="note">Modelo: cada cliente em status de churn (aviso, rescisão, pendência adm, inadimplente, finalizado) é atribuído ao <b>mês da sua Data de Saída</b>. Status + Data de Saída definem o churn.</div>
   </div>`;
 }
 
