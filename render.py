@@ -47,9 +47,11 @@ h1,h2,.brand b,.card-h h3,.acard h3,.stat .n,.donut .c b,.banner h2{font-family:
 .brand .tag{font-size:12.5px;color:var(--side-muted);font-weight:700}
 .navlbl{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--side-muted);font-weight:700;padding:12px 12px 6px}
 .nav{background:transparent;border:0;width:100%;text-align:left;font-family:inherit;font-size:13.5px;font-weight:600;color:var(--side-muted);display:flex;align-items:center;gap:11px;padding:11px 12px;border-radius:12px;cursor:pointer}
-.nav .ic{width:20px;text-align:center;font-size:15px;opacity:.9}
+.nav .ic{width:20px;display:inline-flex;align-items:center;justify-content:center;opacity:.85}
+.nav .ic svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .nav:hover{color:var(--side-ink);background:var(--side-2)}
-.nav[aria-current="true"]{background:linear-gradient(135deg,var(--gold),var(--magenta));color:#fff}
+.nav[aria-current="true"]{background:var(--gold);color:#fff}
+.nav[aria-current="true"] .ic{opacity:1}
 .tfilter{display:flex;flex-wrap:wrap;gap:6px;padding:8px 6px 4px}
 .tfilter button{flex:1 1 44%;font-family:inherit;font-size:11px;font-weight:700;letter-spacing:.02em;color:var(--side-muted);background:var(--side-2);border:0;border-radius:9px;padding:8px 4px;cursor:pointer;white-space:nowrap}
 .tfilter button[aria-pressed="true"]{background:var(--gold-soft);color:var(--gold-2)}
@@ -64,13 +66,18 @@ h1,h2,.brand b,.card-h h3,.acard h3,.stat .n,.donut .c b,.banner h2{font-family:
 .main{display:flex;flex-direction:column;gap:16px;min-width:0}
 .topbar{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap}
 .topbar h1{font-size:22px;font-weight:800;margin:0;letter-spacing:-.01em}
+.crumbs{display:flex;align-items:center;gap:9px;flex-wrap:wrap;font-family:var(--display);font-size:22px;font-weight:800;letter-spacing:-.01em;margin:0;min-height:28px}
+.crumbs .cr{background:transparent;border:0;font:inherit;color:var(--muted);cursor:pointer;padding:0;line-height:1.1}
+.crumbs .cr:hover{color:var(--ink)}
+.crumbs .sep{color:var(--muted);opacity:.45;font-weight:500;font-size:17px}
+.crumbs .cur{color:var(--ink)}
 .content{display:grid;grid-template-columns:1fr 320px;gap:16px;align-items:start}
 @media(max-width:1080px){.content{grid-template-columns:1fr}}
 .col{display:flex;flex-direction:column;gap:16px;min-width:0}
 
 /* banner */
-.banner{background:linear-gradient(120deg,var(--gold) 0%,var(--magenta) 100%);border-radius:var(--r);padding:22px 24px;color:#fff;display:flex;justify-content:space-between;gap:18px;align-items:center;box-shadow:var(--shadow);position:relative;overflow:hidden}
-.banner::after{content:"";position:absolute;right:-40px;top:-40px;width:180px;height:180px;border-radius:50%;background:rgba(255,255,255,.12)}
+.banner{background:linear-gradient(120deg,var(--gold),var(--gold-2));border-radius:var(--r);padding:22px 24px;color:#fff;display:flex;justify-content:space-between;gap:18px;align-items:center;box-shadow:var(--shadow-sm);position:relative;overflow:hidden}
+.banner::after{content:"";position:absolute;right:-40px;top:-40px;width:180px;height:180px;border-radius:50%;background:rgba(255,255,255,.08)}
 .banner .bt{position:relative;z-index:1}
 .banner h2{margin:0 0 6px;font-size:22px;font-weight:800;letter-spacing:-.01em}
 .banner p{margin:0;font-size:13.5px;opacity:.9;max-width:52ch}
@@ -83,6 +90,9 @@ h1,h2,.brand b,.card-h h3,.acard h3,.stat .n,.donut .c b,.banner h2{font-family:
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px}
 .stat{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-sm);padding:14px 15px;box-shadow:var(--shadow-sm);display:flex;flex-direction:column;gap:8px}
 .stat .ico{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:16px;background:var(--panel-2)}
+.stat .ico svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;color:var(--muted)}
+.stat.gold .ico svg{color:var(--gold-2)} .stat.crit .ico svg{color:var(--crit)}
+:root[data-theme="dark"] .stat.gold .ico svg{color:var(--gold)}
 .stat .n{font-size:24px;font-weight:800;line-height:1;white-space:nowrap}
 .stat .l{font-size:11.5px;color:var(--muted);font-weight:600;line-height:1.3}
 .stat.crit .n{color:var(--crit)} .stat.crit .ico{background:color-mix(in srgb,var(--crit) 15%,transparent)}
@@ -184,7 +194,7 @@ h1,h2,.brand b,.card-h h3,.acard h3,.stat .n,.donut .c b,.banner h2{font-family:
 .ppills{display:inline-flex;background:var(--panel-2);border:1px solid var(--line);border-radius:11px;padding:3px;gap:2px;flex-wrap:wrap}
 .ppills button{font-family:inherit;font-size:12.5px;font-weight:600;color:var(--muted);background:transparent;border:0;border-radius:8px;padding:7px 13px;cursor:pointer;white-space:nowrap;transition:background .12s,color .12s}
 .ppills button:hover{color:var(--ink)}
-.ppills button[aria-pressed="true"]{background:linear-gradient(135deg,var(--gold),var(--magenta));color:#fff}
+.ppills button[aria-pressed="true"]{background:var(--gold);color:#fff}
 .ppills button:focus-visible,.applybtn:focus-visible,.pcustom input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .pcustom{display:inline-flex;align-items:center;gap:7px;margin-left:auto}
 .pcustom input[type=date]{font-family:inherit;font-size:12px;color:var(--ink);background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:6px 9px;color-scheme:light dark}
@@ -237,7 +247,13 @@ h1,h2,.brand b,.card-h h3,.acard h3,.stat .n,.donut .c b,.banner h2{font-family:
 .cnav{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:2px}
 .cbtn{font-family:inherit;font-size:12px;font-weight:700;color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:7px 12px;cursor:pointer}
 .cbtn:hover{color:var(--ink);border-color:var(--line-2)}
-.cbtn[aria-pressed="true"]{background:linear-gradient(135deg,var(--gold),var(--magenta));color:#fff;border-color:transparent}
+.cbtn[aria-pressed="true"]{background:var(--gold);color:#fff;border-color:transparent}
+.cbtn.sec{background:transparent;border-color:transparent;color:var(--muted);padding:7px 8px}
+.cbtn.sec:hover{color:var(--gold-2);background:var(--panel-2)}
+.cbtn.sec[aria-pressed="true"]{background:var(--gold-soft);color:var(--gold-2);border-color:transparent}
+:root[data-theme="dark"] .cbtn.sec[aria-pressed="true"]{color:var(--gold)}
+.cnav .sp{flex:1}
+.cnav .csecwrap{display:inline-flex;gap:2px;align-items:center;padding-left:8px;margin-left:2px;border-left:1px solid var(--line)}
 .cbase{display:inline-flex;gap:4px;align-items:center;font-size:11.5px;color:var(--muted);font-weight:700}
 .cscope{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:800;color:var(--gold-2);background:var(--gold-soft);border:1px solid transparent;border-radius:9px;padding:6px 8px 6px 12px;margin-right:2px}
 :root[data-theme="dark"] .cscope{color:var(--gold)}
@@ -307,17 +323,18 @@ h1,h2,.brand b,.card-h h3,.acard h3,.stat .n,.donut .c b,.banner h2{font-family:
   <aside class="side">
     <div class="brand"><span class="logo"><span class="top"><span class="au">Au</span><span class="re">re</span><span class="dot"></span></span><span class="dig">DIGITAL</span></span><span class="tag">· Times</span></div>
     <div class="navlbl">Tarefas</div>
-    <button class="nav" data-page="overview" aria-current="true"><span class="ic">▚</span> Visão geral</button>
-    <button class="nav" data-page="person"><span class="ic">◉</span> Por pessoa</button>
+    <button class="nav" data-page="overview" aria-current="true"><span class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span> Visão geral</button>
+    <button class="nav" data-page="person"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c0-3.6 3.2-5.6 7-5.6s7 2 7 5.6"/></svg></span> Por pessoa</button>
     <div class="navlbl">Churn</div>
-    <button class="nav" data-page="churn"><span class="ic">📉</span> Controle de churn</button>
-    <button class="nav" data-page="times"><span class="ic">⚙</span> Times &amp; metas</button>
+    <button class="nav" data-page="churn"><span class="ic"><svg viewBox="0 0 24 24"><polyline points="3 6 10 13 14 9 21 17"/><polyline points="21 12 21 17 16 17"/></svg></span> Controle de churn</button>
     <div id="teamfilterwrap">
       <div class="navlbl">Time</div>
       <div class="tfilter" id="tfilter"><!-- montado dinamicamente a partir dos times presentes -->
       </div>
     </div>
     <div class="side-foot">
+      <div class="navlbl" style="padding-top:0">Ajustes</div>
+      <button class="nav" data-page="times"><span class="ic"><svg viewBox="0 0 24 24"><line x1="4" y1="8" x2="20" y2="8"/><circle cx="9" cy="8" r="2.4"/><line x1="4" y1="16" x2="20" y2="16"/><circle cx="15" cy="16" r="2.4"/></svg></span> Times &amp; metas</button>
       <div class="gen" id="gen"></div>
       <div class="themetog" id="themetog">
         <button data-t="light" aria-pressed="false">☀ Light</button>
@@ -327,7 +344,7 @@ h1,h2,.brand b,.card-h h3,.acard h3,.stat .n,.donut .c b,.banner h2{font-family:
   </aside>
 
   <main class="main">
-    <div class="topbar"><h1 id="ptitle">Visão geral</h1><div id="topright"></div></div>
+    <div class="topbar"><nav class="crumbs" id="ptitle" aria-label="Navegação"></nav><div id="topright"></div></div>
     <div class="period" id="periodbar" title="Filtra conclusões/adiamentos (Tarefas) e saídas/histórico de fee (Churn). O churn atual é sempre o estado do momento.">
       <span class="plabel">Período</span>
       <div class="ppills" id="periodpresets">
@@ -530,11 +547,11 @@ function renderOverview(){
       </div></div>
 
     <div class="stats">
-      <div class="stat gold"><div class="ico">⏰</div><div class="n">${od.length}</div><div class="l">Em atraso</div></div>
-      <div class="stat"><div class="ico">📋</div><div class="n">${acao}</div><div class="l">Pendências de ação</div></div>
-      <div class="stat crit"><div class="ico">🔥</div><div class="n">${crit}</div><div class="l">Atraso +30 dias</div></div>
-      <div class="stat"><div class="ico">⚠️</div><div class="n">${mal}</div><div class="l">Mal cadastradas</div></div>
-      <div class="stat"><div class="ico">👤</div><div class="n">${ppl}</div><div class="l">Pessoas c/ atraso</div></div>
+      <div class="stat gold"><div class="ico">${ICON.clock}</div><div class="n">${od.length}</div><div class="l">Em atraso</div></div>
+      <div class="stat"><div class="ico">${ICON.list}</div><div class="n">${acao}</div><div class="l">Pendências de ação</div></div>
+      <div class="stat crit"><div class="ico">${ICON.alert}</div><div class="n">${crit}</div><div class="l">Atraso +30 dias</div></div>
+      <div class="stat"><div class="ico">${ICON.warn}</div><div class="n">${mal}</div><div class="l">Mal cadastradas</div></div>
+      <div class="stat"><div class="ico">${ICON.user}</div><div class="n">${ppl}</div><div class="l">Pessoas c/ atraso</div></div>
     </div>
 
     <div class="card"><div class="card-h"><h3>Atrasos por gravidade</h3><div class="r">${od.length} tarefas</div></div>
@@ -609,13 +626,13 @@ function renderPerson(){
     </div>${avaHTML(m,"avatar","")}</div>
 
     <div class="stats">
-      <div class="stat ${crit?'crit':'gold'}"><div class="ico">⏰</div><div class="n">${od.length}</div><div class="l">Em atraso${hiddenN?` · ${hiddenN} oculta(s)`:""}</div></div>
-      <div class="stat"><div class="ico">📅</div><div class="n">${td.length}</div><div class="l">Para fazer hoje</div></div>
-      <div class="stat"><div class="ico">⚠️</div><div class="n">${mal.length}</div><div class="l">Mal cadastradas</div></div>
-      <div class="stat"><div class="ico">✅</div><div class="n" style="color:${otColor}">${b.otRate==null?"—":b.otRate+"%"}</div><div class="l">No prazo</div></div>
-      <div class="stat"><div class="ico">📈</div><div class="n">${b.doneN}</div><div class="l">Concluídas</div></div>
-      <div class="stat"><div class="ico">📦</div><div class="n">${b.maxDay}</div><div class="l">Check em lote/dia</div></div>
-      <div class="stat"><div class="ico">✎</div><div class="n">${b.created}</div><div class="l">Criadas</div></div>
+      <div class="stat ${crit?'crit':'gold'}"><div class="ico">${ICON.clock}</div><div class="n">${od.length}</div><div class="l">Em atraso${hiddenN?` · ${hiddenN} oculta(s)`:""}</div></div>
+      <div class="stat"><div class="ico">${ICON.calendar}</div><div class="n">${td.length}</div><div class="l">Para fazer hoje</div></div>
+      <div class="stat"><div class="ico">${ICON.warn}</div><div class="n">${mal.length}</div><div class="l">Mal cadastradas</div></div>
+      <div class="stat"><div class="ico">${ICON.check}</div><div class="n" style="color:${otColor}">${b.otRate==null?"—":b.otRate+"%"}</div><div class="l">No prazo</div></div>
+      <div class="stat"><div class="ico">${ICON.up}</div><div class="n">${b.doneN}</div><div class="l">Concluídas</div></div>
+      <div class="stat"><div class="ico">${ICON.list}</div><div class="n">${b.maxDay}</div><div class="l">Check em lote/dia</div></div>
+      <div class="stat"><div class="ico">${ICON.check}</div><div class="n">${b.created}</div><div class="l">Criadas</div></div>
     </div>
 
     <div class="card" id="odsec"><div class="card-h"><h3>Em atraso</h3><div class="r"><span>${od.length} aberta(s)</span>${hiddenN?`<button class="linkish" id="showhidden">ver ${hiddenN} oculta(s)</button>`:""}</div></div>
@@ -831,13 +848,12 @@ function renderChurnSquad(name,C,m,hiddenSq){
   const fh=Object.entries(MODEL.feeHistory||{}).filter(([d])=>inRng(d)).sort((a,b)=>a[0]<b[0]?-1:1).map(([d,v])=>[d,(v.bySquad&&v.bySquad[name])||0]);
   const fhMax=Math.max(1,...fh.map(([,x])=>x));
   $("ptitle").textContent="Churn · "+name;
-  $("topright").innerHTML=`<div class="stepbtns"><button class="btn" data-churn-back>← Voltar</button><button class="btn" data-churn-step="-1">↑ Squad ant.</button><button class="btn" data-churn-step="1">Próx. squad ↓</button></div>`;
+  $("topright").innerHTML=`<div class="stepbtns"><button class="btn" data-churn-step="-1">↑ Squad ant.</button><button class="btn" data-churn-step="1">Próx. squad ↓</button></div>`;
   const vr=s.feeAtivo>0?(s.variavel||0)/s.feeAtivo:0;   // variável do último mês, rateada por fee
   const cRow=(c,dk)=>`<tr><td><a class="cname" href="https://app.clickup.com/t/${c.id}" target="_blank" rel="noopener">${esc(c.name)}</a></td><td>${esc(c.account||"—")}</td><td>${esc(c.gestor||"—")}</td><td class="r fee"${c.grp==="aviso"?' style="color:var(--crit)"':''}>${BRL(c.fee)}</td><td class="r fee" style="color:var(--gold-2)">${BRL(c.fee*vr)}</td><td class="r fee">${BRL(c.fee*(1+vr))}</td>${dk?`<td class="r">${c[dk]?fmtBR(c[dk]):"—"}</td>`:''}</tr>`;
   $("root").innerHTML=`${churnNav('Squad: '+name)}<div class="content"><div class="col">
     <div class="banner"><div class="bt"><h2>${esc(name)}</h2>
       <p>${BRL(s.feeAtivo)} de fee ativo · ${BRL(s.feeAviso)} em aviso (${s.nAviso} cliente(s)) — churn de <b>${s.churnPct}%</b>. Meta ≤ ${m.meta}% · super ≤ ${m.sup}%.</p>
-      <div class="cta"><button class="ghost" data-churn-back>← Todos os squads</button></div>
     </div><div class="avatar">${squadInitial(name)}</div></div>
     <div class="kpis">
       <div class="kpi"><div class="n">${BRL(s.feeAtivo)}</div><div class="l">Fee ativo</div><div class="s">${s.nAtivo} clientes</div></div>
@@ -891,12 +907,11 @@ function renderChurnPerson(uid,C,m,hiddenSq){
   const carteiraVar=accBase+gesBase, bMeta=accBase*0.01*0.65+gesBase*0.01*0.35, bSup=accBase*0.02*0.65+gesBase*0.02*0.35;
   const peopleVis=(C.people||[]).filter(pp=>(pp.nAtivo+pp.nAviso)>0&&(pp.squads||[]).some(x=>!hiddenSq.has(x))).sort((a,b)=>b.churnPct-a.churnPct||b.feeAviso-a.feeAviso);
   $("ptitle").textContent="Churn · "+name;
-  $("topright").innerHTML=`<div class="stepbtns"><button class="btn" data-churn-back>← Voltar</button><button class="btn" data-churn-step="-1">↑ Anterior</button><button class="btn" data-churn-step="1">Próximo ↓</button></div>`;
+  $("topright").innerHTML=`<div class="stepbtns"><button class="btn" data-churn-step="-1">↑ Anterior</button><button class="btn" data-churn-step="1">Próximo ↓</button></div>`;
   const pRow=(c,dk)=>{const r=rOf(c);return `<tr><td><a class="cname" href="https://app.clickup.com/t/${c.id}" target="_blank" rel="noopener">${esc(c.name)}</a></td><td><span class="sqtag">${esc(c.squad)}</span></td><td>${roleOf(c)}</td><td class="r fee"${c.grp==="aviso"?' style="color:var(--crit)"':''}>${BRL(c.fee)}</td><td class="r fee" style="color:var(--gold-2)">${BRL(c.fee*r)}</td><td class="r fee">${BRL(c.fee*(1+r))}</td>${dk?`<td class="r">${c[dk]?fmtBR(c[dk]):"—"}</td>`:''}</tr>`;};
   $("root").innerHTML=`${churnNav('Pessoa: '+name)}<div class="content"><div class="col">
     <div class="banner"><div class="bt"><h2>${esc(name)}</h2>
       <p>Carteira de ${BRL(feeAtv+feeAvi)} · ${BRL(feeAvi)} em aviso — churn de <b>${pct}%</b>. ${squadsList.map(x=>`<span class="teamchip">${esc(x)}</span>`).join(" ")}</p>
-      <div class="cta"><button class="ghost" data-churn-back>← Todas as pessoas</button></div>
     </div>${bigAva(pref||name)}</div>
     <div class="kpis">
       <div class="kpi"><div class="n">${BRL(feeAtv)}</div><div class="l">Fee ativo</div><div class="s">${ativos.length} clientes</div></div>
@@ -952,19 +967,20 @@ function scopeLabel(scope,C){
 }
 function churnNav(label){
   const T=(k,l)=>`<button class="cbtn" data-churn-tab="${k}" aria-pressed="${churnTab===k}">${l}</button>`;
+  const S=(k,l)=>`<button class="cbtn sec" data-churn-tab="${k}" aria-pressed="${churnTab===k}">${l}</button>`;
   const showBase=(churnTab==="insights")||(churnTab==="overview"&&churnScope==="all");
-  const base=!showBase?'':`<span style="flex:1"></span><span class="cbase">Base:</span>
+  const base=!showBase?'':`<span class="cbase">Base:</span>
     <button class="cbtn" data-churn-base="fee" aria-pressed="${churnBase==='fee'}">Fee</button>
     <button class="cbtn" data-churn-base="var" aria-pressed="${churnBase==='var'}">Fee + Variável</button>`;
   const chip=label?`<span class="cscope">${esc(label)}<button class="cx" data-churn-back title="Ver a agência toda">✕</button></span>`:'';
   const lp=lancLocal(); const nPend=lp.reducoes.length+lp.variaveis.length;
-  const pend=nPend?`<button class="cbtn" data-churn-tab="lanc" style="background:color-mix(in srgb,var(--high) 18%,transparent);color:var(--high);border-color:transparent" title="Lançamentos pendentes aplicados ao vivo — baixe o arquivo para valer para todos">⚠ ${nPend} pendente${nPend>1?'s':''}</button>`:'';
-  return `<div class="cnav">${chip}${T('overview','Visão geral')}${T('history','Histórico')}${T('projection','Projeção')}${T('bonus','Bonificação')}${T('lanc','Lançamentos')}${T('insights','Insights')}${pend}${base}</div>`;
+  const pend=nPend?`<button class="cbtn sec" data-churn-tab="lanc" style="color:var(--high)" title="Lançamentos locais ainda não salvos">⚠ ${nPend} pendente${nPend>1?'s':''}</button>`:'';
+  return `<div class="cnav">${chip}${T('overview','Resumo')}${T('history','Histórico')}${T('projection','Projeção')}${T('bonus','Bonificação')}<span class="csecwrap">${S('lanc','Lançamentos')}${S('insights','Insights')}${pend}</span><span class="sp"></span>${base}</div>`;
 }
 
 function renderChurnHistory(C,m,scope){
   $("ptitle").textContent="Churn · Histórico";
-  $("topright").innerHTML=`<div class="stepbtns"><button class="btn" data-churn-back>← Voltar</button></div>`;
+  $("topright").innerHTML="";
   const H=MODEL.churnHistory||{}; const allMeses=Object.keys(H.meses||{}).sort();
   const anos=[...new Set(allMeses.map(k=>k.slice(0,4)))];
   const meses=churnYear==="all"?allMeses:allMeses.filter(k=>k.startsWith(churnYear));
@@ -1019,7 +1035,7 @@ function renderChurnHistory(C,m,scope){
 
 function renderChurnProjection(C,m,hiddenSq,scope){
   $("ptitle").textContent="Churn · Projeção";
-  $("topright").innerHTML=`<div class="stepbtns"><button class="btn" data-churn-back>← Voltar</button></div>`;
+  $("topright").innerHTML="";
   const sqName=scope.slice(0,3)==="sq:"?scope.slice(3):null, uid=scope.slice(0,3)==="pp:"?+scope.slice(3):null;
   const inScope=c=>!hiddenSq.has(c.squad)&&(!sqName||c.squad===sqName)&&(uid==null||cInvolves(c,uid));
   const proj=(C.projection||[]).map(p=>{const cl=(p.clients||[]).filter(inScope);return {mes:p.mes,clients:cl,n:cl.length,fee:cl.reduce((s,c)=>s+c.fee,0)};}).filter(p=>p.n);
@@ -1039,7 +1055,7 @@ function renderChurnProjection(C,m,hiddenSq,scope){
 function renderChurnBonus(C,m,hiddenSq,scope){
   const CPV=x=>(x.churnPctVar!=null?x.churnPctVar:x.churnPct);
   $("ptitle").textContent="Churn · Bonificação";
-  $("topright").innerHTML=`<div class="stepbtns"><button class="btn" data-churn-back>← Voltar</button></div>`;
+  $("topright").innerHTML="";
   const sqName=scope.slice(0,3)==="sq:"?scope.slice(3):null, uid=scope.slice(0,3)==="pp:"?+scope.slice(3):null;
   const pPerson=uid!=null?(C.people||[]).find(x=>x.uid===uid):null, pSquads=pPerson?new Set(pPerson.squads||[]):null;
   const squads=(C.squads||[]).filter(s=>s.squad!=="—"&&!hiddenSq.has(s.squad)&&(!sqName||s.squad===sqName)&&(!pSquads||pSquads.has(s.squad)));
@@ -1090,7 +1106,7 @@ function renderChurnBonus(C,m,hiddenSq,scope){
 
 function renderChurnInsights(C,m,hiddenSq,scope){
   $("ptitle").textContent="Churn · Insights";
-  $("topright").innerHTML=`<div class="stepbtns"><button class="btn" data-churn-back>← Voltar</button></div>`;
+  $("topright").innerHTML="";
   const sqName=scope.slice(0,3)==="sq:"?scope.slice(3):null, uid=scope.slice(0,3)==="pp:"?+scope.slice(3):null;
   const pPerson=uid!=null?(C.people||[]).find(x=>x.uid===uid):null, pSquads=pPerson?new Set(pPerson.squads||[]):null;
   const squads=(C.squads||[]).filter(s=>s.squad!=="—"&&!hiddenSq.has(s.squad)&&(!sqName||s.squad===sqName)&&(!pSquads||pSquads.has(s.squad)));
@@ -1248,7 +1264,7 @@ function exportLanc(){
 const PLANILHA_URL="https://docs.google.com/spreadsheets/d/1rObxF8ftyxvV1c2mtM0zyip22YVFf45OO-7Wyg-1Ixc/edit";
 function renderChurnLanc(C,m,hiddenSq){
   $("ptitle").textContent="Churn · Lançamentos";
-  $("topright").innerHTML=`<div class="stepbtns"><button class="btn" data-churn-back>← Voltar</button></div>`;
+  $("topright").innerHTML="";
   const L=MODEL.lancamentos||{variaveis:[],reducoes:[],mesAtual:"",mesPrev:""};
   const mes=L.mesAtual||MODEL.window.to.slice(0,7), mesPrev=L.mesPrev||"";
   const red=(L.reducoes||[]).filter(e=>!hiddenSq.has(e.squad)).sort((a,b)=>(a.mes<b.mes?1:-1)||b.valor-a.valor);
@@ -1306,6 +1322,32 @@ function renderTimes(){
   </div>`;
 }
 
+const ICON={
+  clock:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v4.8l3 1.8"/></svg>',
+  list:'<svg viewBox="0 0 24 24"><line x1="8" y1="7" x2="20" y2="7"/><line x1="8" y1="12" x2="20" y2="12"/><line x1="8" y1="17" x2="20" y2="17"/><circle cx="4" cy="7" r=".6"/><circle cx="4" cy="12" r=".6"/><circle cx="4" cy="17" r=".6"/></svg>',
+  alert:'<svg viewBox="0 0 24 24"><path d="M12 3.5 2.5 20.5h19L12 3.5z"/><line x1="12" y1="10" x2="12" y2="14"/><line x1="12" y1="17" x2="12" y2="17"/></svg>',
+  warn:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="7.5" x2="12" y2="13"/><line x1="12" y1="16.5" x2="12" y2="16.5"/></svg>',
+  user:'<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c0-3.6 3.2-5.6 7-5.6s7 2 7 5.6"/></svg>',
+  calendar:'<svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="6.5"/><line x1="16" y1="3" x2="16" y2="6.5"/></svg>',
+  check:'<svg viewBox="0 0 24 24"><polyline points="4 12.5 9.5 18 20 6.5"/></svg>',
+  up:'<svg viewBox="0 0 24 24"><polyline points="3 17 10 10 14 14 21 6"/><polyline points="21 11 21 6 16 6"/></svg>'
+};
+const CTABLBL={overview:"Resumo",history:"Histórico",projection:"Projeção",bonus:"Bonificação",lanc:"Lançamentos",insights:"Insights"};
+function setCrumbs(){
+  const sep='<span class="sep">›</span>';
+  const btn=(l,c)=>`<button class="cr" data-crumb="${c}">${esc(l)}</button>`;
+  const cur=l=>`<span class="cur">${esc(l)}</span>`;
+  let p=[];
+  if(page==="overview")p=[btn("Tarefas","overview"),cur("Visão geral")];
+  else if(page==="person")p=[btn("Tarefas","overview"),cur("Por pessoa")];
+  else if(page==="times")p=[cur("Ajustes"),cur("Times & metas")];
+  else if(page==="churn"){
+    if(churnScope.slice(0,3)==="sq:")p=[btn("Churn","churn"),cur(churnScope.slice(3))];
+    else if(churnScope.slice(0,3)==="pp:"){const u=+churnScope.slice(3);const pe=((MODEL.churn||{}).people||[]).find(x=>x.uid===u);p=[btn("Churn","churn"),cur(pe?pe.name:"Pessoa")];}
+    else p=[btn("Churn","churn"),cur(CTABLBL[churnTab]||"Resumo")];
+  }
+  $("ptitle").innerHTML=p.join(sep);
+}
 function render(){
   $("gen").textContent=`Atualizado ${MODEL.generated}`;
   $("foot").innerHTML=`Histórico ${MODEL.window.from} → ${MODEL.window.to}. "✓ Fechar" oculta tarefas já concluídas/cliente que saiu (salvo neste navegador, com desfazer). As datas em "Comportamento" filtram o histórico.`;
@@ -1325,10 +1367,12 @@ function render(){
   else if(page==="person")renderPerson();
   else if(page==="churn")renderChurn();
   else renderTimes();
+  setCrumbs();
 }
 // events
 document.addEventListener("click",e=>{
   const nav=e.target.closest(".nav"); if(nav){page=nav.dataset.page;churnScope="all";churnTab="overview";if(page==="churn"&&activePreset().slice(0,2)!=="m:")setPreset("m:"+MODEL.window.to.slice(0,7));render();window.scrollTo({top:0});return;}
+  const cr=e.target.closest("[data-crumb]"); if(cr){const c=cr.dataset.crumb;if(c==="overview")page="overview";else if(c==="person")page="person";else if(c==="churn"){page="churn";churnScope="all";churnTab="overview";}else if(c==="times")page="times";render();window.scrollTo({top:0});return;}
   const tf=e.target.closest("#tfilter button"); if(tf){team=tf.dataset.team;render();return;}
   const pg=e.target.closest("[data-page-go]"); if(pg){page=pg.dataset.pageGo;render();window.scrollTo({top:0});return;}
   const ctab=e.target.closest("[data-churn-tab]"); if(ctab){churnTab=ctab.dataset.churnTab;page="churn";render();window.scrollTo({top:0});return;}
