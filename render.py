@@ -14,7 +14,7 @@ HTML = r"""<style>
   --page:#f6f3fc; --side:#1c1030; --side-2:rgba(255,255,255,.09); --side-ink:#f3eefb; --side-muted:#a99cc6;
   --gold:#7c3aed; --gold-2:#6d28d9; --gold-soft:#f1e9fd; --magenta:#7c3aed; --deep:#160b28; --accent:#7c3aed; --side-accent:#b98cf5;
   --panel:#ffffff; --panel-2:#f6f3fc; --ink:#1b1230; --ink-2:#3a3350; --muted:#6a6284; --line:#e9e2f5; --line-2:#dccff0;
-  --good:#157f4a; --blue:#3f7bc9; --crit:#c0392b; --high:#a5670a; --med:#8a6d12; --today:#6a6284;
+  --good:#22c55e; --blue:#3f7bc9; --crit:#e5484d; --high:#f59e0b; --med:#f2b90c; --today:#94a3b8; --gd-ink:#15803d; --hi-ink:#b45309; --cr-ink:#c0392b;
   --shadow-sm:0 1px 2px rgba(60,30,110,.05); --shadow:0 3px 12px rgba(70,35,130,.07);
   --r:15px; --r-sm:11px;
   --sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
@@ -24,11 +24,11 @@ HTML = r"""<style>
   --page:#120e1c; --side:#0d0a16; --side-2:rgba(255,255,255,.08); --side-ink:#f2eefb; --side-muted:#a99cc6;
   --gold:#a67ef0; --gold-2:#b98cf5; --gold-soft:#241a3c; --magenta:#a67ef0; --deep:#160b28; --accent:#a67ef0; --side-accent:#b98cf5;
   --panel:#1a1428; --panel-2:#211934; --ink:#f0ecfa; --ink-2:#cfc7e2; --muted:#9a90b5; --line:#2c2440; --line-2:#392c52;
-  --good:#3fbe80; --blue:#5b93da; --crit:#f0635e; --high:#e6a544; --med:#d8b84e; --today:#8a80a5;
+  --good:#3fbe80; --blue:#5b93da; --crit:#f0635e; --high:#e6a544; --med:#d8b84e; --today:#8a80a5; --gd-ink:#4ade80; --hi-ink:#fbbf24; --cr-ink:#f87171;
   --shadow-sm:0 1px 2px rgba(0,0,0,.4); --shadow:0 10px 30px rgba(0,0,0,.5);
 }}
-:root[data-theme="light"]{--page:#f6f3fc;--side:#1c1030;--side-2:rgba(255,255,255,.09);--side-ink:#f3eefb;--side-muted:#a99cc6;--gold:#7c3aed;--gold-2:#6d28d9;--gold-soft:#f1e9fd;--magenta:#7c3aed;--deep:#160b28;--accent:#7c3aed;--side-accent:#b98cf5;--panel:#fff;--panel-2:#f6f3fc;--ink:#1b1230;--ink-2:#3a3350;--muted:#6a6284;--line:#e9e2f5;--line-2:#dccff0;--good:#157f4a;--blue:#3f7bc9;--crit:#c0392b;--high:#a5670a;--med:#8a6d12;--today:#6a6284;--shadow-sm:0 1px 2px rgba(60,30,110,.05);--shadow:0 3px 12px rgba(70,35,130,.07);}
-:root[data-theme="dark"]{--page:#120e1c;--side:#0d0a16;--side-2:rgba(255,255,255,.08);--side-ink:#f2eefb;--side-muted:#a99cc6;--gold:#a67ef0;--gold-2:#b98cf5;--gold-soft:#241a3c;--magenta:#a67ef0;--deep:#160b28;--accent:#a67ef0;--side-accent:#b98cf5;--panel:#1a1428;--panel-2:#211934;--ink:#f0ecfa;--ink-2:#cfc7e2;--muted:#9a90b5;--line:#2c2440;--line-2:#392c52;--good:#3fbe80;--blue:#5b93da;--crit:#f0635e;--high:#e6a544;--med:#d8b84e;--today:#8a80a5;--shadow-sm:0 1px 2px rgba(0,0,0,.4);--shadow:0 10px 30px rgba(0,0,0,.5);}
+:root[data-theme="light"]{--page:#f6f3fc;--side:#1c1030;--side-2:rgba(255,255,255,.09);--side-ink:#f3eefb;--side-muted:#a99cc6;--gold:#7c3aed;--gold-2:#6d28d9;--gold-soft:#f1e9fd;--magenta:#7c3aed;--deep:#160b28;--accent:#7c3aed;--side-accent:#b98cf5;--panel:#fff;--panel-2:#f6f3fc;--ink:#1b1230;--ink-2:#3a3350;--muted:#6a6284;--line:#e9e2f5;--line-2:#dccff0;--good:#22c55e;--blue:#3f7bc9;--crit:#e5484d;--high:#f59e0b;--med:#f2b90c;--today:#94a3b8;--gd-ink:#15803d;--hi-ink:#b45309;--cr-ink:#c0392b;--shadow-sm:0 1px 2px rgba(60,30,110,.05);--shadow:0 3px 12px rgba(70,35,130,.07);}
+:root[data-theme="dark"]{--page:#120e1c;--side:#0d0a16;--side-2:rgba(255,255,255,.08);--side-ink:#f2eefb;--side-muted:#a99cc6;--gold:#a67ef0;--gold-2:#b98cf5;--gold-soft:#241a3c;--magenta:#a67ef0;--deep:#160b28;--accent:#a67ef0;--side-accent:#b98cf5;--panel:#1a1428;--panel-2:#211934;--ink:#f0ecfa;--ink-2:#cfc7e2;--muted:#9a90b5;--line:#2c2440;--line-2:#392c52;--good:#3fbe80;--blue:#5b93da;--crit:#f0635e;--high:#e6a544;--med:#d8b84e;--today:#8a80a5;--gd-ink:#4ade80;--hi-ink:#fbbf24;--cr-ink:#f87171;--shadow-sm:0 1px 2px rgba(0,0,0,.4);--shadow:0 10px 30px rgba(0,0,0,.5);}
 *{box-sizing:border-box}
 h1,h2,.brand b,.card-h h3,.acard h3,.stat .n,.donut .c b,.banner h2{font-family:var(--display)}
 .wrap{font-family:var(--sans);background:var(--page);color:var(--ink);min-height:100vh;padding:18px;line-height:1.5;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
@@ -175,7 +175,7 @@ h1,h2,.brand b,.card-h h3,.acard h3,.stat .n,.donut .c b,.banner h2{font-family:
 .pill.warn{background:color-mix(in srgb,var(--high) 14%,transparent);color:var(--high)}
 .pill.pr.urgent{color:#fff;background:var(--crit)} .pill.pr.high{color:var(--high);background:color-mix(in srgb,var(--high) 15%,transparent)}
 .tright{text-align:right;white-space:nowrap}
-.tdays{font-size:14.5px;font-weight:800} .tdays.crit{color:var(--crit)}.tdays.high{color:var(--high)}.tdays.med{color:var(--med)}.tdays.today{color:var(--today)}
+.tdays{font-size:14.5px;font-weight:800} .tdays.crit{color:var(--cr-ink)}.tdays.high{color:var(--hi-ink)}.tdays.med{color:var(--hi-ink)}.tdays.today{color:var(--today)}
 .tdue{font-size:10.5px;color:var(--muted)}
 .closebtn{font-family:inherit;font-size:11px;font-weight:600;color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 9px;cursor:pointer;white-space:nowrap}
 .closebtn:hover{color:var(--good);border-color:var(--good)}
@@ -278,9 +278,9 @@ h1,h2,.brand b,.card-h h3,.acard h3,.stat .n,.donut .c b,.banner h2{font-family:
 .metabar .mlbl{position:absolute;top:21px;font-size:9.5px;font-weight:600;color:var(--muted);transform:translateX(-50%);white-space:nowrap}
 .metabar.big .mlbl{top:27px}
 .zbadge{font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;white-space:nowrap;display:inline-block}
-.zbadge.super{background:color-mix(in srgb,var(--good) 15%,transparent);color:var(--good)}
-.zbadge.meta{background:color-mix(in srgb,var(--med) 22%,transparent);color:var(--high)}
-.zbadge.acima{background:color-mix(in srgb,var(--crit) 13%,transparent);color:var(--crit)}
+.zbadge.super{background:color-mix(in srgb,var(--good) 20%,transparent);color:var(--gd-ink)}
+.zbadge.meta{background:color-mix(in srgb,var(--med) 34%,transparent);color:var(--hi-ink)}
+.zbadge.acima{background:color-mix(in srgb,var(--crit) 18%,transparent);color:var(--cr-ink)}
 .sqrow{display:grid;grid-template-columns:130px 1fr 82px;gap:16px;align-items:center;padding:16px 0;border-top:1px solid var(--line)}
 .sqrow:first-child{border-top:0}
 .sqrow .sqn{font-weight:800;font-size:14px}
@@ -517,7 +517,7 @@ function taskRow(t,closable){
 function renderOverview(){
   $("ptitle").textContent="Visão geral";$("topright").innerHTML="";
   const od=overdueAll(),acao=od.filter(t=>t.bucket==="acao").length,crit=od.filter(t=>t.days>30).length;
-  const mal=MODEL.malformed.filter(t=>t.uid==null||inTeam(t.uid)).length;
+  const mal=MODEL.malformed.filter(t=>t.uid==null?team==="all":inTeam(t.uid)).length;   // sem responsável só conta em "Todos"
   const ppl=new Set(od.map(t=>t.uid)).size;
   const sc=segCount(od);
   const donut=donutGrad([{v:sc.crit,color:"var(--crit)"},{v:sc.high,color:"var(--high)"},{v:sc.med,color:"var(--med)"},{v:sc.today,color:"var(--today)"}]);
@@ -527,9 +527,8 @@ function renderOverview(){
   const byM={};od.forEach(t=>(byM[t.uid]=byM[t.uid]||[]).push(t));
   const rank=Object.entries(byM).map(([u,ts])=>({uid:+u,n:ts.length,c:segCount(ts)})).sort((a,b)=>b.n-a.n);
   const rmax=Math.max(1,...rank.map(r=>r.n));
-  // attention people (top overdue) & malformed & best on-time
+  // attention people (top overdue) & best on-time  (mal cadastradas ficou só na visão Por pessoa)
   const attention=rank.slice(0,5);
-  const malList=MODEL.malformed.filter(t=>t.uid==null||inTeam(t.uid)).slice(0,5);
   const best=membersInTeam().map(m=>({m,b:behavior(m.uid)})).filter(x=>x.b.onTime+x.b.late>=3)
     .sort((a,b)=>(b.b.otRate??-1)-(a.b.otRate??-1)).slice(0,4);
   const ppBoard=membersInTeam().map(m=>({m,n:postponeCount(m.uid)})).filter(x=>x.n>0).sort((a,b)=>b.n-a.n).slice(0,5);
@@ -580,11 +579,6 @@ function renderOverview(){
       ${attention.map(r=>`<div class="arow">${avaHTML(MEM[r.uid],"ava","")}
         <div class="mid"><b>${esc(MEM[r.uid].name)}</b><span>${MEM[r.uid].team} · ${r.c.crit} crítica(s)</span></div>
         <button class="minibtn" data-open="${r.uid}">abrir</button></div>`).join("")||'<div class="empty">—</div>'}</div>
-
-    <div class="acard"><h3>Mal cadastradas</h3><p class="sub">Sem responsável ou sem prazo</p>
-      ${malList.map(t=>`<div class="arow"><div class="datebadge"><b>!</b><span>fix</span></div>
-        <div class="mid"><b>${esc(t.name)}</b><span>${esc(t.list)}${t.account?" · "+esc(t.account):(t.gestor?" · "+esc(t.gestor):"")}</span></div>
-        <a class="minibtn" href="https://app.clickup.com/t/${t.id}" target="_blank" rel="noopener">ver</a></div>`).join("")||'<div class="empty">Nenhuma</div>'}</div>
 
     <div class="acard"><h3>Melhores no prazo</h3><p class="sub">Janela ${dFrom} → ${dTo}</p>
       ${best.map(x=>`<div class="arow">${avaHTML(x.m,"ava","")}
@@ -800,10 +794,9 @@ function renderChurn(){
       <div class="kpi"><div class="n">${BRL(tFee+tVar)}</div><div class="l">Fee + Variável</div><div class="s">base total</div></div>
       <div class="kpi"><div class="n" style="color:var(--crit)">${BRL(tAvi)}</div><div class="l">Churn de ${mesLbl}</div><div class="s">${nAviso} cliente(s) saindo</div></div>
       <div class="kpi"><div class="n" style="color:${ZONEC[z]}">${tPct}%</div><div class="l">Churn (${useVar?'fee+var':'fee'})</div><div class="s"><span class="zbadge ${z}">${ZONEL[z]}</span></div></div>
-      <div class="kpi"><div class="n">${BRL(perdidoP)}</div><div class="l">Saídas no período</div><div class="s">${saidas.length} cliente(s)</div></div>
     </div>
 
-    <div class="card"><div class="card-h"><h3>Atingimento de meta — agência</h3><div class="r">churn ${tPct}% · meta ≤ ${m.meta}% · super ≤ ${m.sup}%</div></div>
+    <div class="card"><div class="card-h"><h3>Atingimento de meta — ${team==="all"?"agência":esc(team)}</h3><div class="r">churn ${tPct}% · meta ≤ ${m.meta}% · super ≤ ${m.sup}%</div></div>
       <div class="pad"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px">
         <b style="font-family:var(--display);font-size:30px;color:${ZONEC[z]}">${tPct}%</b><span class="zbadge ${z}">${ZONEL[z]}</span></div>
         ${attainBar(tPct,m,true)}<div style="height:26px"></div>
@@ -827,13 +820,6 @@ function renderChurn(){
         <td><span class="sqtag">${esc(c.squad)}</span></td><td>${esc(c.status||"—")}</td><td>${esc(c.account||"—")}</td><td>${esc(c.gestor||"—")}</td>
         <td class="r fee" style="color:var(--crit)">${BRL(c.fee)}</td><td class="r">${c.saida?fmtBR(c.saida):"—"}</td></tr>`).join("")}</tbody></table></div>`
       :`<div class="empty">Nenhum churn com Data de Saída em ${mesLbl}</div>`}</div>
-
-    <div class="card"><div class="card-h"><h3>Saídas no período</h3><div class="r">${fmtBR(dFrom)} → ${fmtBR(dTo)} · ${saidas.length} · ${BRL(perdidoP)}</div></div>
-      ${saidas.length?`<div class="tblwrap"><table class="ctable"><thead><tr><th>Cliente</th><th>Squad</th><th>Account</th><th class="r">Fee</th><th class="r">Saída</th></tr></thead>
-      <tbody>${saidas.map(c=>`<tr><td><a class="cname" href="https://app.clickup.com/t/${c.id}" target="_blank" rel="noopener">${esc(c.name)}</a></td>
-        <td><span class="sqtag">${esc(c.squad)}</span></td><td>${esc(c.account||"—")}</td>
-        <td class="r fee">${BRL(c.fee)}</td><td class="r">${c.churnDate?fmtBR(c.churnDate):"—"}</td></tr>`).join("")}</tbody></table></div>`
-      :'<div class="empty">Nenhuma saída nesse período. Ajuste o período no topo (ex.: "Este mês" ou "Tudo").</div>'}</div>
 
     <div class="card"><div class="card-h"><h3>Fee ativo ao longo do tempo</h3><div class="r">${fmtBR(dFrom)} → ${fmtBR(dTo)}</div></div>
       <div class="pad">${fh.length>1?`<div class="fbars">${fh.map(([d,v])=>`<div class="fb" style="height:${Math.max(3,(v.feeAtivo||0)/fhMax*82)}px" title="${fmtBR(d)}: ${BRL(v.feeAtivo||0)}"></div>`).join("")}</div>
