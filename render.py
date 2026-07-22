@@ -226,9 +226,9 @@ h1,h2,.brand b,.card-h h3,.acard h3,.stat .n,.donut .c b,.banner h2{font-family:
 .bar-col{width:25px;border-radius:6px 6px 4px 4px;overflow:hidden;display:flex;flex-direction:column-reverse;background:var(--panel-2)}
 .bar-col .seg{width:100%}.bar-col .seg.ok{background:var(--good)}.bar-col .seg.late{background:var(--crit)}
 .collbl{font-size:9.5px;color:var(--muted);white-space:nowrap}
-.psum{display:flex;flex-wrap:wrap}
-.psum>div{padding:14px 20px 14px 0;margin-right:20px;border-right:1px solid var(--line);flex:0 1 auto}
-.psum>div:last-child{border-right:0;margin-right:0}
+.psum{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr))}
+.psum>div{padding:14px 18px;border-right:1px solid var(--line)}
+.psum>div:last-child{border-right:0}
 .psum>div b{font-family:var(--display);font-size:25px;font-weight:800;display:block;line-height:1;letter-spacing:-.02em}
 .psum>div span{font-size:11.5px;color:var(--muted);font-weight:600;margin-top:5px;display:block}
 .chips{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
@@ -737,12 +737,14 @@ function importCfg(file){const r=new FileReader();r.onload=()=>{try{const c=JSON
 function renderChurn(){
   // fonte de variável/reduções agora é a PLANILHA (já vem calculada no backend). Sem pending local.
   const C=MODEL.churn||{squads:[],people:[],clients:[],totals:{}}, m=metas(), hiddenSq=new Set(m.hidden||[]);
+  const teamOk=s=>team==="all"||s===team;                                     // filtro de time da sidebar vale no churn
+  const effScope=(churnScope==="all"&&team!=="all")?("sq:"+team):churnScope;   // sem drill: o time vira escopo de squad p/ as abas
   if(churnTab!=="overview"){
-    if(churnTab==="history")return renderChurnHistory(C,m,churnScope);
-    if(churnTab==="projection")return renderChurnProjection(C,m,hiddenSq,churnScope);
-    if(churnTab==="bonus")return renderChurnBonus(C,m,hiddenSq,churnScope);
+    if(churnTab==="history")return renderChurnHistory(C,m,effScope);
+    if(churnTab==="projection")return renderChurnProjection(C,m,hiddenSq,effScope);
+    if(churnTab==="bonus")return renderChurnBonus(C,m,hiddenSq,effScope);
     if(churnTab==="lanc")return renderChurnLanc(C,m,hiddenSq);
-    if(churnTab==="insights")return renderChurnInsights(C,m,hiddenSq,churnScope);
+    if(churnTab==="insights")return renderChurnInsights(C,m,hiddenSq,effScope);
   }
   if(churnScope.slice(0,3)==="sq:")return renderChurnSquad(churnScope.slice(3),C,m,hiddenSq);
   if(churnScope.slice(0,3)==="pp:")return renderChurnPerson(+churnScope.slice(3),C,m,hiddenSq);
@@ -755,12 +757,12 @@ function renderChurn(){
   const selMes=(activePreset().slice(0,2)==="m:")?activePreset().slice(2):null;   // null = "Tudo" (todos os meses)
   const mesLbl=selMes?projMesLbl(selMes):"todos os meses";
   const CHURN_GRP=new Set(["aviso","futuro","saiu"]);
-  const churnCli=(C.clients||[]).filter(c=>c.saidaMes&&CHURN_GRP.has(c.grp)&&(selMes?c.saidaMes===selMes:true)&&!hiddenSq.has(c.squad));
+  const churnCli=(C.clients||[]).filter(c=>c.saidaMes&&CHURN_GRP.has(c.grp)&&(selMes?c.saidaMes===selMes:true)&&!hiddenSq.has(c.squad)&&teamOk(c.squad));
   const aviBySq={},nAviBySq={},aviByUid={},nByUid={};
   churnCli.forEach(c=>{aviBySq[c.squad]=(aviBySq[c.squad]||0)+c.fee;nAviBySq[c.squad]=(nAviBySq[c.squad]||0)+1;
     new Set([...(c.accountUids||[]),...(c.gestorUids||[])]).forEach(u=>{aviByUid[u]=(aviByUid[u]||0)+c.fee;nByUid[u]=(nByUid[u]||0)+1;});});
   const pctOf=(base,avi)=>(base+avi)?+(avi/(base+avi)*100).toFixed(2):0;
-  const squads=(C.squads||[]).filter(s=>s.squad!=="—"&&!hiddenSq.has(s.squad)).map(s=>{
+  const squads=(C.squads||[]).filter(s=>s.squad!=="—"&&!hiddenSq.has(s.squad)&&teamOk(s.squad)).map(s=>{
     const avi=+(aviBySq[s.squad]||0).toFixed(2);
     return Object.assign({},s,{feeAviso:avi,nAviso:nAviBySq[s.squad]||0,
       churnPct:pctOf(s.feeAtivo,avi),churnPctVar:pctOf(s.feeAtivoVar!=null?s.feeAtivoVar:s.feeAtivo,avi)});});
@@ -771,7 +773,7 @@ function renderChurn(){
   const avisoClients=churnCli.slice().sort((a,b)=>b.fee-a.fee);
   const saidas=(C.clients||[]).filter(c=>c.grp==="saiu"&&c.churnDate&&inRng(c.churnDate)&&!hiddenSq.has(c.squad)).sort((a,b)=>a.churnDate<b.churnDate?1:-1);
   const perdidoP=saidas.reduce((s,c)=>s+c.fee,0);
-  const people=(C.people||[]).filter(p=>(p.squads||[]).some(s=>!hiddenSq.has(s))).map(p=>{
+  const people=(C.people||[]).filter(p=>(p.squads||[]).some(s=>!hiddenSq.has(s)&&teamOk(s))).map(p=>{
     const avi=+(aviByUid[p.uid]||0).toFixed(2);
     return Object.assign({},p,{feeAviso:avi,nAviso:nByUid[p.uid]||0,
       churnPct:pctOf(p.feeAtivo,avi),churnPctVar:pctOf(p.feeAtivoVar!=null?p.feeAtivoVar:p.feeAtivo,avi)});
@@ -787,7 +789,7 @@ function renderChurn(){
   $("root").innerHTML=`<div class="col">
     ${churnNav()}
     <div class="banner"><div class="bt">
-      <h2>Controle de churn — agência</h2>
+      <h2>Controle de churn — ${team==="all"?"agência":esc(team)}</h2>
       <p>${BRL(tAtv)} de ${useVar?'fee + variável':'fee ativo'} sob gestão · <b>${BRL(tAvi)}</b> de churn em ${mesLbl} (${nAviso} cliente(s)) — <b>${tPct}%</b> do faturamento. O mês do churn vem da Data de Saída. Troque o mês no topo. Meta ≤ ${m.meta}% · super meta ≤ ${m.sup}%.</p>
     </div></div>
     ${(C.semDataSaida||[]).length?`<div class="note" style="border-left-color:var(--crit)"><b>${C.semDataSaida.length} cliente(s) em status de churn sem Data de Saída</b> — sem a data não dá pra saber em que mês o churn entra, então ficam de fora da conta. Preencha a Data de Saída no ClickUp: ${C.semDataSaida.slice(0,8).map(c=>esc(c.name)+" ("+esc(c.status)+")").join(" · ")}${C.semDataSaida.length>8?" …":""}.</div>`:''}
@@ -1384,7 +1386,7 @@ function render(){
   $("periodpresets").innerHTML=(page==="churn")?monthPresetsHTML():dayPresetsHTML();   // churn filtra por MÊS
   const apnow=activePreset();
   [...$("periodpresets").children].forEach(x=>{if(x.dataset.preset!=null)x.setAttribute("aria-pressed",x.dataset.preset===apnow);});
-  $("teamfilterwrap").style.display=(page==="overview"||page==="person")?"":"none";
+  $("teamfilterwrap").style.display=(page==="overview"||page==="person"||page==="churn")?"":"none";
   const churnNoPeriod=(page==="churn"&&(churnTab==="history"||churnTab==="projection"||churnTab==="bonus"));
   $("periodbar").style.display=(page==="times"||churnNoPeriod)?"none":"";
   if(page==="overview")renderOverview();
@@ -1397,7 +1399,7 @@ function render(){
 document.addEventListener("click",e=>{
   const nav=e.target.closest(".nav"); if(nav){page=nav.dataset.page;churnScope="all";churnTab="overview";if(page==="churn"&&activePreset().slice(0,2)!=="m:")setPreset("m:"+MODEL.window.to.slice(0,7));render();window.scrollTo({top:0});return;}
   const cr=e.target.closest("[data-crumb]"); if(cr){const c=cr.dataset.crumb;if(c==="overview")page="overview";else if(c==="person")page="person";else if(c==="churn"){page="churn";churnScope="all";churnTab="overview";}else if(c==="times")page="times";render();window.scrollTo({top:0});return;}
-  const tf=e.target.closest("#tfilter button"); if(tf){team=tf.dataset.team;render();return;}
+  const tf=e.target.closest("#tfilter button"); if(tf){team=tf.dataset.team;if(page==="churn")churnScope="all";render();return;}
   const pg=e.target.closest("[data-page-go]"); if(pg){page=pg.dataset.pageGo;render();window.scrollTo({top:0});return;}
   const ctab=e.target.closest("[data-churn-tab]"); if(ctab){churnTab=ctab.dataset.churnTab;page="churn";render();window.scrollTo({top:0});return;}
   const cop=e.target.closest("[data-churn-open]"); if(cop){const v=cop.dataset.churnOpen;churnScope=(v==="overview"||v==="all")?"all":v;churnTab="overview";page="churn";render();window.scrollTo({top:0});return;}
