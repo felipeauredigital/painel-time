@@ -14,7 +14,7 @@ HTML = r"""<style>
   --page:#f6f3fc; --side:#1c1030; --side-2:rgba(255,255,255,.09); --side-ink:#f3eefb; --side-muted:#a99cc6;
   --gold:#7c3aed; --gold-2:#6d28d9; --gold-soft:#f1e9fd; --magenta:#7c3aed; --deep:#160b28; --accent:#7c3aed; --side-accent:#b98cf5;
   --panel:#ffffff; --panel-2:#f6f3fc; --ink:#1b1230; --ink-2:#3a3350; --muted:#6a6284; --line:#e9e2f5; --line-2:#dccff0;
-  --good:#1f9d63; --blue:#3f7bc9; --crit:#e0453f; --high:#d98a1f; --med:#c99a1e; --today:#9a90b5;
+  --good:#157f4a; --blue:#3f7bc9; --crit:#c0392b; --high:#a5670a; --med:#8a6d12; --today:#6a6284;
   --shadow-sm:0 1px 2px rgba(60,30,110,.05); --shadow:0 3px 12px rgba(70,35,130,.07);
   --r:15px; --r-sm:11px;
   --sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
@@ -27,7 +27,7 @@ HTML = r"""<style>
   --good:#3fbe80; --blue:#5b93da; --crit:#f0635e; --high:#e6a544; --med:#d8b84e; --today:#8a80a5;
   --shadow-sm:0 1px 2px rgba(0,0,0,.4); --shadow:0 10px 30px rgba(0,0,0,.5);
 }}
-:root[data-theme="light"]{--page:#f6f3fc;--side:#1c1030;--side-2:rgba(255,255,255,.09);--side-ink:#f3eefb;--side-muted:#a99cc6;--gold:#7c3aed;--gold-2:#6d28d9;--gold-soft:#f1e9fd;--magenta:#7c3aed;--deep:#160b28;--accent:#7c3aed;--side-accent:#b98cf5;--panel:#fff;--panel-2:#f6f3fc;--ink:#1b1230;--ink-2:#3a3350;--muted:#6a6284;--line:#e9e2f5;--line-2:#dccff0;--good:#1f9d63;--blue:#3f7bc9;--crit:#e0453f;--high:#d98a1f;--med:#c99a1e;--today:#9a90b5;--shadow-sm:0 1px 2px rgba(60,30,110,.05);--shadow:0 3px 12px rgba(70,35,130,.07);}
+:root[data-theme="light"]{--page:#f6f3fc;--side:#1c1030;--side-2:rgba(255,255,255,.09);--side-ink:#f3eefb;--side-muted:#a99cc6;--gold:#7c3aed;--gold-2:#6d28d9;--gold-soft:#f1e9fd;--magenta:#7c3aed;--deep:#160b28;--accent:#7c3aed;--side-accent:#b98cf5;--panel:#fff;--panel-2:#f6f3fc;--ink:#1b1230;--ink-2:#3a3350;--muted:#6a6284;--line:#e9e2f5;--line-2:#dccff0;--good:#157f4a;--blue:#3f7bc9;--crit:#c0392b;--high:#a5670a;--med:#8a6d12;--today:#6a6284;--shadow-sm:0 1px 2px rgba(60,30,110,.05);--shadow:0 3px 12px rgba(70,35,130,.07);}
 :root[data-theme="dark"]{--page:#120e1c;--side:#0d0a16;--side-2:rgba(255,255,255,.08);--side-ink:#f2eefb;--side-muted:#a99cc6;--gold:#a67ef0;--gold-2:#b98cf5;--gold-soft:#241a3c;--magenta:#a67ef0;--deep:#160b28;--accent:#a67ef0;--side-accent:#b98cf5;--panel:#1a1428;--panel-2:#211934;--ink:#f0ecfa;--ink-2:#cfc7e2;--muted:#9a90b5;--line:#2c2440;--line-2:#392c52;--good:#3fbe80;--blue:#5b93da;--crit:#f0635e;--high:#e6a544;--med:#d8b84e;--today:#8a80a5;--shadow-sm:0 1px 2px rgba(0,0,0,.4);--shadow:0 10px 30px rgba(0,0,0,.5);}
 *{box-sizing:border-box}
 h1,h2,.brand b,.card-h h3,.acard h3,.stat .n,.donut .c b,.banner h2{font-family:var(--display)}
@@ -52,10 +52,14 @@ h1,h2,.brand b,.card-h h3,.acard h3,.stat .n,.donut .c b,.banner h2{font-family:
 .nav:hover{color:#fff;background:var(--side-2)}
 .nav[aria-current="true"]{background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:#fff}
 .nav[aria-current="true"] .ic{opacity:1}
-.tfilter{display:flex;flex-wrap:wrap;gap:6px;padding:8px 6px 4px}
-.tfilter button{flex:1 1 44%;font-family:inherit;font-size:11px;font-weight:600;color:var(--side-muted);background:var(--side-2);border:0;border-radius:8px;padding:7px 4px;cursor:pointer;white-space:nowrap}
-.tfilter button:hover{color:#fff}
-.tfilter button[aria-pressed="true"]{background:var(--side-accent);color:#1c1030}
+.tfilter{display:flex;flex-direction:column;gap:2px;padding:6px 2px 4px}
+.tfilter button{display:flex;align-items:center;gap:10px;width:100%;font-family:inherit;font-size:12.5px;font-weight:600;color:var(--side-muted);background:transparent;border:0;border-radius:9px;padding:8px 11px;cursor:pointer;text-align:left}
+.tfilter button:hover{color:#fff;background:var(--side-2)}
+.tfilter button[aria-pressed="true"]{background:var(--side-2);color:#fff}
+.tfilter .tdot{width:10px;height:10px;border-radius:3px;flex:none}
+.tfilter button[aria-pressed="true"] .tdot{box-shadow:0 0 0 2px rgba(255,255,255,.22)}
+.tfilter .tct{margin-left:auto;font-size:10.5px;font-weight:700;color:var(--side-muted);background:var(--side-2);border-radius:999px;padding:1px 7px;min-width:20px;text-align:center}
+.tfilter button[aria-pressed="true"] .tct{color:#fff;background:rgba(255,255,255,.16)}
 .side-foot{margin-top:auto;display:flex;flex-direction:column;gap:9px;padding-top:14px}
 .gen{font-size:11px;color:var(--side-muted);padding:0 12px}
 .themetog{display:flex;background:var(--side-2);border-radius:10px;padding:3px;gap:3px}
@@ -311,16 +315,22 @@ h1,h2,.brand b,.card-h h3,.acard h3,.stat .n,.donut .c b,.banner h2{font-family:
 .fbars .fb .ft{position:absolute;top:-16px;left:50%;transform:translateX(-50%);font-size:9px;color:var(--muted);white-space:nowrap}
 .peoplemini{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
 .pmchip{display:flex;align-items:center;gap:7px;background:var(--panel-2);border:1px solid var(--line);border-radius:999px;padding:4px 11px 4px 4px;font-size:11.5px;font-weight:600}
+
+/* --- acessibilidade: foco de teclado + alvos de clique --- */
+a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
+.nav:focus-visible,.tfilter button:focus-visible,.themetog button:focus-visible{outline-color:var(--side-accent)}
+.cx{min-width:26px;min-height:26px;display:inline-grid;place-items:center;padding:2px}
+.minibtn,.closebtn{min-height:28px}
 </style>
 
 <div class="wrap"><div class="app">
   <aside class="side">
     <div class="brand"><span class="logo"><span class="top"><span class="au">Au</span><span class="re">re</span><span class="dot"></span></span><span class="dig">DIGITAL</span></span><span class="tag">· Times</span></div>
     <div class="navlbl">Tarefas</div>
-    <button class="nav" data-page="overview" aria-current="true"><span class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span> Visão geral</button>
-    <button class="nav" data-page="person"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c0-3.6 3.2-5.6 7-5.6s7 2 7 5.6"/></svg></span> Por pessoa</button>
+    <button class="nav" data-page="overview" aria-current="true"><span class="ic"><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span> Visão geral</button>
+    <button class="nav" data-page="person"><span class="ic"><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c0-3.6 3.2-5.6 7-5.6s7 2 7 5.6"/></svg></span> Por pessoa</button>
     <div class="navlbl">Churn</div>
-    <button class="nav" data-page="churn"><span class="ic"><svg viewBox="0 0 24 24"><polyline points="3 6 10 13 14 9 21 17"/><polyline points="21 12 21 17 16 17"/></svg></span> Controle de churn</button>
+    <button class="nav" data-page="churn"><span class="ic"><svg aria-hidden="true" viewBox="0 0 24 24"><polyline points="3 6 10 13 14 9 21 17"/><polyline points="21 12 21 17 16 17"/></svg></span> Controle de churn</button>
     <div id="teamfilterwrap">
       <div class="navlbl">Time</div>
       <div class="tfilter" id="tfilter"><!-- montado dinamicamente a partir dos times presentes -->
@@ -328,7 +338,7 @@ h1,h2,.brand b,.card-h h3,.acard h3,.stat .n,.donut .c b,.banner h2{font-family:
     </div>
     <div class="side-foot">
       <div class="navlbl" style="padding-top:0">Ajustes</div>
-      <button class="nav" data-page="times"><span class="ic"><svg viewBox="0 0 24 24"><line x1="4" y1="8" x2="20" y2="8"/><circle cx="9" cy="8" r="2.4"/><line x1="4" y1="16" x2="20" y2="16"/><circle cx="15" cy="16" r="2.4"/></svg></span> Times &amp; metas</button>
+      <button class="nav" data-page="times"><span class="ic"><svg aria-hidden="true" viewBox="0 0 24 24"><line x1="4" y1="8" x2="20" y2="8"/><circle cx="9" cy="8" r="2.4"/><line x1="4" y1="16" x2="20" y2="16"/><circle cx="15" cy="16" r="2.4"/></svg></span> Times &amp; metas</button>
       <div class="gen" id="gen"></div>
       <div class="themetog" id="themetog">
         <button data-t="light" aria-pressed="false">☀ Light</button>
@@ -381,6 +391,7 @@ const TEAMGRAD={"E-SCALE":"linear-gradient(135deg,#915fe3,#6f3fd0)","FENIX":"lin
   "ADFORCE":"linear-gradient(135deg,#3a86c8,#255e9a)","G.O.A.T":"linear-gradient(135deg,#b06bd8,#8a3fc0)",
   "BULLS":"linear-gradient(135deg,#3aa88f,#248069)","COMERCIAL":"linear-gradient(135deg,#d0a24a,#b07f2c)",
   "BACKOFFICE":"linear-gradient(135deg,#7a80d8,#565cc0)"};
+const TEAMDOT={"ADFORCE":"#3a86c8","G.O.A.T":"#a259d8","BULLS":"#2fa78d","E-SCALE":"#8a5cf0","FENIX":"#c23dff","COMERCIAL":"#d0a24a","BACKOFFICE":"#7a80d8"};
 const TEAMPAL=["#915fe3","#3a86c8","#3aa88f","#d0a24a","#c8506a","#7a80d8","#b06bd8","#5aa06a"];
 function teamGrad(t){ if(TEAMGRAD[t])return TEAMGRAD[t];
   let h=0; for(let i=0;i<(t||"").length;i++)h=(h*31+t.charCodeAt(i))>>>0;
@@ -475,7 +486,10 @@ function monthPresetsHTML(){
   if(churnPmYear==null)churnPmYear=curY;
   const ys=new Set([curY]); Object.keys((MODEL.churnHistory&&MODEL.churnHistory.meses)||{}).forEach(k=>ys.add(+k.slice(0,4)));
   const years=[...ys].sort((a,b)=>a-b);
-  const lastMo=(churnPmYear===curY)?+MODEL.window.to.slice(5,7):12;   // ano atual só até o mês corrente
+  let lastMo=(churnPmYear===curY)?+MODEL.window.to.slice(5,7):12;   // ano atual: até o mês corrente...
+  if(churnPmYear===curY){   // ...estendido p/ incluir meses futuros que já têm churn (projeção)
+    ((MODEL.churn&&MODEL.churn.projection)||[]).forEach(p=>{const k=p.mes||"";if(k.slice(0,4)==String(curY)){const mo=+k.slice(5,7);if(mo>lastMo)lastMo=mo;}});
+  }
   let out=[];
   for(let mo=1;mo<=lastMo;mo++){const k=churnPmYear+"-"+p2(mo);out.push(`<button data-preset="m:${k}">${monthLbl(k)}</button>`);}  // crescente
   out.push('<button data-preset="all">Tudo</button>');
@@ -737,15 +751,31 @@ function renderChurn(){
   const useVar=churnBase==="var";
   const FA=x=>useVar&&x.feeAtivoVar!=null?x.feeAtivoVar:x.feeAtivo;
   const CP=x=>useVar&&x.churnPctVar!=null?x.churnPctVar:x.churnPct;
-  const squads=(C.squads||[]).filter(s=>s.squad!=="—"&&!hiddenSq.has(s.squad));
+  // --- o MÊS selecionado no topo pilota o churn (atribuído pela Data de Saída) ---
+  const selMes=(activePreset().slice(0,2)==="m:")?activePreset().slice(2):null;   // null = "Tudo" (todos os meses)
+  const mesLbl=selMes?projMesLbl(selMes):"todos os meses";
+  const CHURN_GRP=new Set(["aviso","futuro","saiu"]);
+  const churnCli=(C.clients||[]).filter(c=>c.saidaMes&&CHURN_GRP.has(c.grp)&&(selMes?c.saidaMes===selMes:true)&&!hiddenSq.has(c.squad));
+  const aviBySq={},nAviBySq={},aviByUid={},nByUid={};
+  churnCli.forEach(c=>{aviBySq[c.squad]=(aviBySq[c.squad]||0)+c.fee;nAviBySq[c.squad]=(nAviBySq[c.squad]||0)+1;
+    new Set([...(c.accountUids||[]),...(c.gestorUids||[])]).forEach(u=>{aviByUid[u]=(aviByUid[u]||0)+c.fee;nByUid[u]=(nByUid[u]||0)+1;});});
+  const pctOf=(base,avi)=>(base+avi)?+(avi/(base+avi)*100).toFixed(2):0;
+  const squads=(C.squads||[]).filter(s=>s.squad!=="—"&&!hiddenSq.has(s.squad)).map(s=>{
+    const avi=+(aviBySq[s.squad]||0).toFixed(2);
+    return Object.assign({},s,{feeAviso:avi,nAviso:nAviBySq[s.squad]||0,
+      churnPct:pctOf(s.feeAtivo,avi),churnPctVar:pctOf(s.feeAtivoVar!=null?s.feeAtivoVar:s.feeAtivo,avi)});});
   const tFee=squads.reduce((s,x)=>s+x.feeAtivo,0), tVar=squads.reduce((s,x)=>s+(x.variavel||0),0);
   const tAtv=squads.reduce((s,x)=>s+FA(x),0), tAvi=squads.reduce((s,x)=>s+x.feeAviso,0);
   const tPct=(tAtv+tAvi)?+(tAvi/(tAtv+tAvi)*100).toFixed(2):0, z=zoneOf(tPct,m);
   const nAtivo=squads.reduce((s,x)=>s+x.nAtivo,0), nAviso=squads.reduce((s,x)=>s+x.nAviso,0);
-  const avisoClients=(C.clients||[]).filter(c=>c.grp==="aviso"&&!hiddenSq.has(c.squad)).sort((a,b)=>b.fee-a.fee);
+  const avisoClients=churnCli.slice().sort((a,b)=>b.fee-a.fee);
   const saidas=(C.clients||[]).filter(c=>c.grp==="saiu"&&c.churnDate&&inRng(c.churnDate)&&!hiddenSq.has(c.squad)).sort((a,b)=>a.churnDate<b.churnDate?1:-1);
   const perdidoP=saidas.reduce((s,c)=>s+c.fee,0);
-  const people=(C.people||[]).filter(p=>(p.nAtivo+p.nAviso)>0&&(p.squads||[]).some(s=>!hiddenSq.has(s))).sort((a,b)=>b.churnPct-a.churnPct||b.feeAviso-a.feeAviso);
+  const people=(C.people||[]).filter(p=>(p.squads||[]).some(s=>!hiddenSq.has(s))).map(p=>{
+    const avi=+(aviByUid[p.uid]||0).toFixed(2);
+    return Object.assign({},p,{feeAviso:avi,nAviso:nByUid[p.uid]||0,
+      churnPct:pctOf(p.feeAtivo,avi),churnPctVar:pctOf(p.feeAtivoVar!=null?p.feeAtivoVar:p.feeAtivo,avi)});
+  }).filter(p=>(p.nAtivo+p.nAviso)>0).sort((a,b)=>b.churnPct-a.churnPct||b.feeAviso-a.feeAviso);
   const fh=Object.entries(MODEL.feeHistory||{}).filter(([d])=>inRng(d)).sort((a,b)=>a[0]<b[0]?-1:1);
   const fhMax=Math.max(1,...fh.map(([,v])=>v.feeAtivo||0));
   const squadRow=s=>{const zz=zoneOf(CP(s),m);return `<div class="sqrow" data-churn-open="sq:${esc(s.squad)}" style="cursor:pointer" title="Abrir ${esc(s.squad)}">
@@ -758,7 +788,7 @@ function renderChurn(){
     ${churnNav()}
     <div class="banner"><div class="bt">
       <h2>Controle de churn — agência</h2>
-      <p>${BRL(tAtv)} de ${useVar?'fee + variável':'fee ativo'} sob gestão · <b>${BRL(tAvi)}</b> de churn em ${projMesLbl(C.mesAtual||"")} (${nAviso} cliente(s)) — <b>${tPct}%</b> do faturamento. O mês do churn vem da Data de Saída. Meta ≤ ${m.meta}% · super meta ≤ ${m.sup}%.</p>
+      <p>${BRL(tAtv)} de ${useVar?'fee + variável':'fee ativo'} sob gestão · <b>${BRL(tAvi)}</b> de churn em ${mesLbl} (${nAviso} cliente(s)) — <b>${tPct}%</b> do faturamento. O mês do churn vem da Data de Saída. Troque o mês no topo. Meta ≤ ${m.meta}% · super meta ≤ ${m.sup}%.</p>
     </div></div>
     ${(C.semDataSaida||[]).length?`<div class="note" style="border-left-color:var(--crit)"><b>${C.semDataSaida.length} cliente(s) em status de churn sem Data de Saída</b> — sem a data não dá pra saber em que mês o churn entra, então ficam de fora da conta. Preencha a Data de Saída no ClickUp: ${C.semDataSaida.slice(0,8).map(c=>esc(c.name)+" ("+esc(c.status)+")").join(" · ")}${C.semDataSaida.length>8?" …":""}.</div>`:''}
 
@@ -766,7 +796,7 @@ function renderChurn(){
       <div class="kpi"><div class="n">${BRL(tFee)}</div><div class="l">Fee ativo</div><div class="s">${nAtivo} clientes</div></div>
       <div class="kpi"><div class="n" style="color:var(--gold-2)">${BRL(tVar)}</div><div class="l">Variável</div><div class="s">comissão do mês</div></div>
       <div class="kpi"><div class="n">${BRL(tFee+tVar)}</div><div class="l">Fee + Variável</div><div class="s">base total</div></div>
-      <div class="kpi"><div class="n" style="color:var(--crit)">${BRL(tAvi)}</div><div class="l">Churn do mês</div><div class="s">${nAviso} saindo em ${projMesLbl(C.mesAtual||"")}</div></div>
+      <div class="kpi"><div class="n" style="color:var(--crit)">${BRL(tAvi)}</div><div class="l">Churn de ${mesLbl}</div><div class="s">${nAviso} cliente(s) saindo</div></div>
       <div class="kpi"><div class="n" style="color:${ZONEC[z]}">${tPct}%</div><div class="l">Churn (${useVar?'fee+var':'fee'})</div><div class="s"><span class="zbadge ${z}">${ZONEL[z]}</span></div></div>
       <div class="kpi"><div class="n">${BRL(perdidoP)}</div><div class="l">Saídas no período</div><div class="s">${saidas.length} cliente(s)</div></div>
     </div>
@@ -789,12 +819,12 @@ function renderChurn(){
         <td class="r fee">${BRL(p.feeAtivo)}</td><td class="r fee" style="color:${p.variavel?'var(--gold-2)':'var(--muted)'}">${p.variavel?BRL(p.variavel):"—"}</td><td class="r fee" style="color:${p.feeAviso?'var(--crit)':'var(--muted)'}">${p.feeAviso?BRL(p.feeAviso):"—"}</td>
         <td class="r"><b style="color:${ZONEC[zz]}">${CP(p)}%</b></td><td>${attainBar(CP(p),m)}</td></tr>`;}).join("")||'<tr><td colspan="7" class="empty">Sem pessoas.</td></tr>'}</tbody></table></div></div>
 
-    <div class="card"><div class="card-h"><h3>Churn deste mês (${projMesLbl(C.mesAtual||"")})</h3><div class="r">Data de Saída em ${projMesLbl(C.mesAtual||"")} · ${avisoClients.length} · ${BRL(tAvi)}</div></div>
+    <div class="card"><div class="card-h"><h3>Churn de ${mesLbl}</h3><div class="r">Data de Saída em ${mesLbl} · ${avisoClients.length} · ${BRL(tAvi)}</div></div>
       ${avisoClients.length?`<div class="tblwrap"><table class="ctable"><thead><tr><th>Cliente</th><th>Squad</th><th>Status</th><th>Account</th><th>Gestor</th><th class="r">Fee</th><th class="r">Data de Saída</th></tr></thead>
       <tbody>${avisoClients.map(c=>`<tr><td><a class="cname" href="https://app.clickup.com/t/${c.id}" target="_blank" rel="noopener">${esc(c.name)}</a></td>
         <td><span class="sqtag">${esc(c.squad)}</span></td><td>${esc(c.status||"—")}</td><td>${esc(c.account||"—")}</td><td>${esc(c.gestor||"—")}</td>
         <td class="r fee" style="color:var(--crit)">${BRL(c.fee)}</td><td class="r">${c.saida?fmtBR(c.saida):"—"}</td></tr>`).join("")}</tbody></table></div>`
-      :'<div class="empty">Nenhum churn com Data de Saída neste mês</div>'}</div>
+      :`<div class="empty">Nenhum churn com Data de Saída em ${mesLbl}</div>`}</div>
 
     <div class="card"><div class="card-h"><h3>Saídas no período</h3><div class="r">${fmtBR(dFrom)} → ${fmtBR(dTo)} · ${saidas.length} · ${BRL(perdidoP)}</div></div>
       ${saidas.length?`<div class="tblwrap"><table class="ctable"><thead><tr><th>Cliente</th><th>Squad</th><th>Account</th><th class="r">Fee</th><th class="r">Saída</th></tr></thead>
@@ -1317,14 +1347,14 @@ function renderTimes(){
 }
 
 const ICON={
-  clock:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v4.8l3 1.8"/></svg>',
-  list:'<svg viewBox="0 0 24 24"><line x1="8" y1="7" x2="20" y2="7"/><line x1="8" y1="12" x2="20" y2="12"/><line x1="8" y1="17" x2="20" y2="17"/><circle cx="4" cy="7" r=".6"/><circle cx="4" cy="12" r=".6"/><circle cx="4" cy="17" r=".6"/></svg>',
-  alert:'<svg viewBox="0 0 24 24"><path d="M12 3.5 2.5 20.5h19L12 3.5z"/><line x1="12" y1="10" x2="12" y2="14"/><line x1="12" y1="17" x2="12" y2="17"/></svg>',
-  warn:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="7.5" x2="12" y2="13"/><line x1="12" y1="16.5" x2="12" y2="16.5"/></svg>',
-  user:'<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c0-3.6 3.2-5.6 7-5.6s7 2 7 5.6"/></svg>',
-  calendar:'<svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="6.5"/><line x1="16" y1="3" x2="16" y2="6.5"/></svg>',
-  check:'<svg viewBox="0 0 24 24"><polyline points="4 12.5 9.5 18 20 6.5"/></svg>',
-  up:'<svg viewBox="0 0 24 24"><polyline points="3 17 10 10 14 14 21 6"/><polyline points="21 11 21 6 16 6"/></svg>'
+  clock:'<svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v4.8l3 1.8"/></svg>',
+  list:'<svg aria-hidden="true" viewBox="0 0 24 24"><line x1="8" y1="7" x2="20" y2="7"/><line x1="8" y1="12" x2="20" y2="12"/><line x1="8" y1="17" x2="20" y2="17"/><circle cx="4" cy="7" r=".6"/><circle cx="4" cy="12" r=".6"/><circle cx="4" cy="17" r=".6"/></svg>',
+  alert:'<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3.5 2.5 20.5h19L12 3.5z"/><line x1="12" y1="10" x2="12" y2="14"/><line x1="12" y1="17" x2="12" y2="17"/></svg>',
+  warn:'<svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="7.5" x2="12" y2="13"/><line x1="12" y1="16.5" x2="12" y2="16.5"/></svg>',
+  user:'<svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c0-3.6 3.2-5.6 7-5.6s7 2 7 5.6"/></svg>',
+  calendar:'<svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="6.5"/><line x1="16" y1="3" x2="16" y2="6.5"/></svg>',
+  check:'<svg aria-hidden="true" viewBox="0 0 24 24"><polyline points="4 12.5 9.5 18 20 6.5"/></svg>',
+  up:'<svg aria-hidden="true" viewBox="0 0 24 24"><polyline points="3 17 10 10 14 14 21 6"/><polyline points="21 11 21 6 16 6"/></svg>'
 };
 const CTABLBL={overview:"Resumo",history:"Histórico",projection:"Projeção",bonus:"Bonificação",lanc:"Lançamentos",insights:"Insights"};
 function setCrumbs(){
@@ -1408,11 +1438,12 @@ document.addEventListener("change",e=>{
 function showToast(msg){$("toastmsg").textContent=msg;$("toast").hidden=false;clearTimeout(window._tt);window._tt=setTimeout(()=>$("toast").hidden=true,6000);}
 $("toastundo").addEventListener("click",()=>{if(window._last){unhide(window._last);window._last=null;$("toast").hidden=true;render();}});
 function buildTeamFilter(){
-  const set=new Set(); MODEL.members.forEach(m=>mTeams(m).forEach(t=>set.add(t)));
+  const set=new Set(), cnt={}; MODEL.members.forEach(m=>mTeams(m).forEach(t=>{set.add(t);cnt[t]=(cnt[t]||0)+1;}));
   const CANON=["ADFORCE","G.O.A.T","BULLS","E-SCALE","FENIX"];
   const ordered=CANON.filter(t=>set.has(t)).concat([...set].filter(t=>!CANON.includes(t)).sort());
-  const btn=(v,l)=>`<button data-team="${esc(v)}" aria-pressed="${team===v}">${esc(l)}</button>`;
-  $("tfilter").innerHTML=btn("all","Todos")+ordered.map(t=>btn(t,t)).join("");
+  const dot=v=>`<span class="tdot" style="background:${v==="all"?"var(--side-accent)":(TEAMDOT[v]||"var(--side-accent)")}"></span>`;
+  const btn=(v,l,c)=>`<button data-team="${esc(v)}" aria-pressed="${team===v}">${dot(v)}<span>${esc(l)}</span><span class="tct">${c}</span></button>`;
+  $("tfilter").innerHTML=btn("all","Todos",MODEL.members.length)+ordered.map(t=>btn(t,t,cnt[t]||0)).join("");
 }
 buildTeamFilter();
 render();
