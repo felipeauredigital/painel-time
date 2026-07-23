@@ -32,7 +32,7 @@ HTML = r"""<style>
 *{box-sizing:border-box}
 h1,h2,.brand b,.card-h h3,.acard h3,.stat .n,.donut .c b,.banner h2{font-family:var(--display)}
 .wrap{font-family:var(--sans);background:var(--page);color:var(--ink);min-height:100vh;padding:0;line-height:1.5;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
-.app{display:grid;grid-template-columns:68px 1fr;gap:0;max-width:none;margin:0;align-items:start}
+.app{display:grid;grid-template-columns:86px 1fr;gap:0;max-width:none;margin:0;align-items:start}
 @media(max-width:860px){.wrap{padding:0}.app{grid-template-columns:1fr;gap:0}.main{padding:16px}}
 
 /* rail de ícones (Opção B): navegação compacta, rótulos em tooltip */
@@ -40,16 +40,15 @@ h1,h2,.brand b,.card-h h3,.acard h3,.stat .n,.donut .c b,.banner h2{font-family:
 @media(max-width:860px){.side{position:static;min-height:0;flex-direction:row;padding:8px 12px;justify-content:center}}
 .rbrand{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#8b5cf6,#6d28d9);display:grid;place-items:center;font-family:var(--display);font-weight:800;font-size:16px;color:#fff;margin-bottom:12px}
 @media(max-width:860px){.rbrand{margin-bottom:0;margin-right:8px}}
-.nav{background:transparent;border:0;width:44px;height:44px;font-family:inherit;color:var(--side-muted);display:grid;place-items:center;border-radius:11px;cursor:pointer;transition:background .12s,color .12s;position:relative}
+.nav{background:transparent;border:0;width:74px;font-family:inherit;color:var(--side-muted);display:flex;flex-direction:column;align-items:center;gap:5px;padding:9px 2px 8px;border-radius:11px;cursor:pointer;transition:background .12s,color .12s;position:relative}
 .nav .ic{display:inline-flex;align-items:center;justify-content:center}
 .nav .ic svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.nav .nlbl{font-size:9.5px;font-weight:700;letter-spacing:.02em;line-height:1.15;text-align:center}
 .nav:hover{color:#fff;background:var(--side-2)}
 .nav[aria-current="true"]{background:rgba(255,255,255,.14);color:#fff}
-.nav[aria-current="true"]::before{content:"";position:absolute;left:-12px;width:3.5px;height:22px;border-radius:3px;background:var(--side-accent)}
-@media(max-width:860px){.nav[aria-current="true"]::before{left:auto;top:-8px;width:22px;height:3.5px}}
-.nav[data-tip]:hover::after{content:attr(data-tip);position:absolute;left:56px;top:50%;transform:translateY(-50%);background:#181028;color:#fff;font-size:11.5px;font-weight:700;padding:5px 10px;border-radius:7px;white-space:nowrap;z-index:30;pointer-events:none}
-@media(max-width:860px){.nav[data-tip]:hover::after{left:50%;top:auto;bottom:-32px;transform:translateX(-50%)}}
-.raildot{position:absolute;top:8px;right:8px;width:8px;height:8px;border-radius:50%;background:#f43f5e;border:2px solid #241447}
+.nav[aria-current="true"]::before{content:"";position:absolute;left:-6px;top:50%;transform:translateY(-50%);width:3.5px;height:26px;border-radius:3px;background:var(--side-accent)}
+@media(max-width:860px){.nav[aria-current="true"]::before{left:50%;top:-6px;transform:translateX(-50%);width:22px;height:3.5px}}
+.raildot{position:absolute;top:6px;right:20px;width:8px;height:8px;border-radius:50%;background:#f43f5e;border:2px solid #241447}
 .side .sp{flex:1}
 /* filtro de time: pílulas claras no topo da página */
 #teamfilterwrap{display:flex;min-width:0}
@@ -68,7 +67,7 @@ h1,h2,.brand b,.card-h h3,.acard h3,.stat .n,.donut .c b,.banner h2{font-family:
 .themetog button[aria-pressed="true"]{background:var(--side-accent);color:#1c1030}
 
 /* main */
-.main{display:flex;flex-direction:column;gap:22px;min-width:0;padding:24px 40px 44px;max-width:1380px}
+.main{display:flex;flex-direction:column;gap:22px;min-width:0;padding:24px 40px 44px;max-width:1380px;margin-inline:auto;width:100%}
 .topbar{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;flex-wrap:wrap}
 .topctl{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
 .topbar h1{font-size:22px;font-weight:800;margin:0;letter-spacing:-.015em}
@@ -348,11 +347,11 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,[t
 <div class="wrap"><div class="app">
   <aside class="side">
     <div class="rbrand" title="Aure Digital · Times">A</div>
-    <button class="nav" data-page="overview" aria-current="true" data-tip="Visão geral" aria-label="Visão geral"><span class="ic"><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span></button>
-    <button class="nav" data-page="person" data-tip="Por pessoa" aria-label="Por pessoa"><span class="ic"><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c0-3.6 3.2-5.6 7-5.6s7 2 7 5.6"/></svg></span></button>
-    <button class="nav" data-page="churn" data-tip="Controle de churn" aria-label="Controle de churn"><span class="ic"><svg aria-hidden="true" viewBox="0 0 24 24"><polyline points="3 6 10 13 14 9 21 17"/><polyline points="21 12 21 17 16 17"/></svg></span><span class="raildot" id="raildot" hidden></span></button>
+    <button class="nav" data-page="overview" aria-current="true"><span class="ic"><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span><span class="nlbl">Visão geral</span></button>
+    <button class="nav" data-page="person"><span class="ic"><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c0-3.6 3.2-5.6 7-5.6s7 2 7 5.6"/></svg></span><span class="nlbl">Pessoas</span></button>
+    <button class="nav" data-page="churn"><span class="ic"><svg aria-hidden="true" viewBox="0 0 24 24"><polyline points="3 6 10 13 14 9 21 17"/><polyline points="21 12 21 17 16 17"/></svg></span><span class="nlbl">Churn</span><span class="raildot" id="raildot" hidden></span></button>
     <div class="sp"></div>
-    <button class="nav" data-page="times" data-tip="Times &amp; metas" aria-label="Times e metas"><span class="ic"><svg aria-hidden="true" viewBox="0 0 24 24"><line x1="4" y1="8" x2="20" y2="8"/><circle cx="9" cy="8" r="2.4"/><line x1="4" y1="16" x2="20" y2="16"/><circle cx="15" cy="16" r="2.4"/></svg></span></button>
+    <button class="nav" data-page="times"><span class="ic"><svg aria-hidden="true" viewBox="0 0 24 24"><line x1="4" y1="8" x2="20" y2="8"/><circle cx="9" cy="8" r="2.4"/><line x1="4" y1="16" x2="20" y2="16"/><circle cx="15" cy="16" r="2.4"/></svg></span><span class="nlbl">Ajustes</span></button>
     <div class="themetog" id="themetog">
       <button data-t="light" aria-pressed="false" title="Tema claro" aria-label="Tema claro">☀</button>
       <button data-t="dark" aria-pressed="false" title="Tema escuro" aria-label="Tema escuro">☾</button>
