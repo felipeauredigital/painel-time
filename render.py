@@ -337,6 +337,26 @@ h1,h2,.brand b,.card-h h3,.acard h3,.stat .n,.donut .c b,.banner h2{font-family:
 .pcell{display:inline-flex;align-items:center;gap:6px}
 .ctable tfoot td{background:var(--panel-2);font-weight:800;border-top:1.5px solid var(--line-2)}
 
+/* --- identificação de usuário (telemetria de uso) --- */
+.identov{position:fixed;inset:0;background:rgba(22,11,40,.78);backdrop-filter:blur(3px);z-index:60;display:grid;place-items:center;padding:20px}
+.identov[hidden]{display:none}
+.identcard{background:var(--panel);border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.4);padding:28px 30px;max-width:660px;width:100%;max-height:86vh;overflow:auto}
+.identcard h2{font-size:21px;font-weight:800;letter-spacing:-.02em;margin:0 0 6px}
+.identcard p{font-size:13px;color:var(--muted);margin:0 0 18px;line-height:1.5}
+.identgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.identgrid button{font-family:inherit;display:flex;align-items:center;gap:9px;background:var(--panel-2);border:1px solid var(--line);border-radius:11px;padding:9px 11px;cursor:pointer;text-align:left;font-size:12.5px;font-weight:700;color:var(--ink)}
+.identgrid button:hover{border-color:var(--accent);background:var(--gold-soft)}
+.identgrid .tm{display:block;font-size:10px;font-weight:600;color:var(--muted)}
+/* página Uso */
+.uscore{display:inline-flex;align-items:center;gap:7px}
+.uscore .bar{width:70px;height:7px;border-radius:5px;background:var(--panel-2);overflow:hidden}
+.uscore .bar i{display:block;height:100%;border-radius:5px}
+.uscore b{font-size:13px;min-width:24px;text-align:right}
+.upill{font-size:10.5px;font-weight:800;padding:2.5px 9px;border-radius:999px;white-space:nowrap}
+.upill.g{background:color-mix(in srgb,var(--good) 14%,transparent);color:var(--gd-ink)}
+.upill.w{background:color-mix(in srgb,var(--high) 14%,transparent);color:var(--hi-ink)}
+.upill.c{background:color-mix(in srgb,var(--crit) 12%,transparent);color:var(--cr-ink)}
+
 /* --- acessibilidade: foco de teclado + alvos de clique --- */
 a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
 .nav:focus-visible,.themetog button:focus-visible{outline-color:var(--side-accent)}
@@ -350,6 +370,7 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,[t
     <button class="nav" data-page="overview" aria-current="true"><span class="ic"><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span><span class="nlbl">Visão geral</span></button>
     <button class="nav" data-page="person"><span class="ic"><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c0-3.6 3.2-5.6 7-5.6s7 2 7 5.6"/></svg></span><span class="nlbl">Pessoas</span></button>
     <button class="nav" data-page="churn"><span class="ic"><svg aria-hidden="true" viewBox="0 0 24 24"><polyline points="3 6 10 13 14 9 21 17"/><polyline points="21 12 21 17 16 17"/></svg></span><span class="nlbl">Churn</span><span class="raildot" id="raildot" hidden></span></button>
+    <button class="nav" data-page="uso" id="navuso" hidden><span class="ic"><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v4.8l3 1.8"/></svg></span><span class="nlbl">Uso</span></button>
     <div class="sp"></div>
     <button class="nav" data-page="times"><span class="ic"><svg aria-hidden="true" viewBox="0 0 24 24"><line x1="4" y1="8" x2="20" y2="8"/><circle cx="9" cy="8" r="2.4"/><line x1="4" y1="16" x2="20" y2="16"/><circle cx="15" cy="16" r="2.4"/></svg></span><span class="nlbl">Ajustes</span></button>
     <div class="themetog" id="themetog">
@@ -384,6 +405,11 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,[t
     <div class="gen" id="gen"></div>
     <div class="foot" id="foot"></div>
   </main>
+</div></div>
+<div class="identov" id="identov" hidden><div class="identcard">
+  <h2>Quem está usando o painel?</h2>
+  <p>Escolha seu nome — usamos isso para entender o uso da ferramenta e melhorá-la. Dá para trocar depois em <b>Ajustes</b>.</p>
+  <div class="identgrid" id="identgrid"></div>
 </div></div>
 <div class="toast" id="toast" hidden><span id="toastmsg"></span><button id="toastundo">Desfazer</button></div>
 <input type="file" id="cfgfile" accept="application/json" hidden>
@@ -1348,6 +1374,12 @@ function renderTimes(){
   $("root").innerHTML=`<div class="col">
     <div class="note"><b>Como funciona:</b> squads e pessoas vêm automaticamente do ClickUp (campo <b>Squad</b> + <b>Account</b>/<b>Gestor de Tráfego</b> na lista de Empresas). Ao cadastrar um cliente ou trocar alguém de squad no ClickUp, o painel se atualiza sozinho na próxima rodada — não precisa recadastrar aqui. Você edita as <b>metas</b> e escolhe quais squads acompanhar. <b>(Etapa que vamos refinar juntos.)</b></div>
 
+    ${usoOn()?`<div class="card"><div class="card-h"><h3>Identificação</h3><div class="r">usada na medição de uso do painel</div></div>
+      <div class="pad" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <span style="font-size:13px">${ident()?`Você está identificado como <b>${esc(ident().name)}</b>.`:"Você ainda não se identificou."}</span>
+        <button class="btn" data-ident-reset>${ident()?"Trocar usuário":"Identificar-se"}</button>
+      </div></div>`:""}
+
     <div class="card"><div class="card-h"><h3>Metas de churn</h3><div class="r">valem para todos os squads e pessoas</div></div>
       <div class="pad"><div class="metaedit">
         <label>Meta — churn até (%)<input type="number" id="metaInput" value="${m.meta}" min="0" max="100" step="0.5"></label>
@@ -1382,6 +1414,7 @@ function setCrumbs(){
   if(page==="overview"){el="Tarefas";ec="overview";title="Visão geral";}
   else if(page==="person"){el="Tarefas";ec="overview";title="Por pessoa";}
   else if(page==="times"){el="Ajustes";title="Times & metas";}
+  else if(page==="uso"){el="Adoção";title="Uso do painel";}
   else if(page==="churn"){
     if(churnScope.slice(0,3)==="sq:"){el="Churn";ec="churn";title=churnScope.slice(3);}
     else if(churnScope.slice(0,3)==="pp:"){const u=+churnScope.slice(3);const pe=((MODEL.churn||{}).people||[]).find(x=>x.uid===u);el="Churn";ec="churn";title=pe?pe.name:"Pessoa";}
@@ -1406,10 +1439,13 @@ function render(){
   [...$("periodpresets").children].forEach(x=>{if(x.dataset.preset!=null)x.setAttribute("aria-pressed",x.dataset.preset===apnow);});
   $("teamfilterwrap").style.display=(page==="overview"||page==="person"||page==="churn")?"":"none";
   const churnNoPeriod=(page==="churn"&&(churnTab==="history"||churnTab==="projection"||churnTab==="bonus"));
-  $("periodbar").style.display=(page==="times"||churnNoPeriod)?"none":"";
+  $("periodbar").style.display=(page==="times"||page==="uso"||churnNoPeriod)?"none":"";
+  $("navuso").hidden=!usoOn();
+  if(window._lastPage!==page){window._lastPage=page;track("page",page);}
   if(page==="overview")renderOverview();
   else if(page==="person")renderPerson();
   else if(page==="churn")renderChurn();
+  else if(page==="uso")renderUso();
   else renderTimes();
   setCrumbs();
 }
@@ -1461,6 +1497,128 @@ document.addEventListener("change",e=>{
 });
 function showToast(msg){$("toastmsg").textContent=msg;$("toast").hidden=false;clearTimeout(window._tt);window._tt=setTimeout(()=>$("toast").hidden=true,6000);}
 $("toastundo").addEventListener("click",()=>{if(window._last){unhide(window._last);window._last=null;$("toast").hidden=true;render();}});
+/* ---------------- TELEMETRIA DE USO (identificação + eventos + página Uso) ---------------- */
+const USO_URL="";                    // URL /exec do Apps Script — vazio = recurso desligado
+const ADMIN_PIN="2026";              // PIN p/ abrir a página Uso (troque quando quiser)
+const IDKEY="clk_ident_v1", TQKEY="clk_tq_v1";
+const usoUrl=()=>USO_URL||localStorage.getItem("clk_uso_url")||"";
+const usoOn=()=>!!usoUrl();
+function ident(){try{return JSON.parse(localStorage.getItem(IDKEY)||"null")}catch(e){return null}}
+let SID=null;
+function track(type,detail){ if(!usoOn()||!ident())return;
+  try{ const q=JSON.parse(localStorage.getItem(TQKEY)||"[]");
+    q.push({ts:new Date().toISOString(),uid:ident().uid,name:ident().name,type:type,page:page,detail:detail||"",sid:SID});
+    localStorage.setItem(TQKEY,JSON.stringify(q.slice(-600)));
+  }catch(e){}
+}
+function flushT(useBeacon){ if(!usoOn())return;
+  try{ const q=JSON.parse(localStorage.getItem(TQKEY)||"[]"); if(!q.length)return;
+    const body=JSON.stringify({events:q});
+    if(useBeacon&&typeof navigator!=="undefined"&&navigator.sendBeacon){ if(navigator.sendBeacon(usoUrl(),body))localStorage.setItem(TQKEY,"[]"); return; }
+    if(typeof fetch==="undefined")return;
+    fetch(usoUrl(),{method:"POST",body:body}).then(()=>localStorage.setItem(TQKEY,"[]")).catch(()=>{});
+  }catch(e){}
+}
+function showIdent(){ if(!usoOn()||ident())return;
+  $("identgrid").innerHTML=MODEL.members.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(m=>
+    `<button data-ident-pick="${m.uid}">${avaHTML(m,"ava","width:30px;height:30px;border-radius:9px;font-size:11px")}<span>${esc(m.name)}<span class="tm">${esc(mTeams(m).join(" · "))}</span></span></button>`).join("");
+  $("identov").hidden=false;
+}
+function startT(){ if(!usoOn()||!ident())return;
+  SID="s"+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+  track("session");track("page",page);
+  if(typeof setInterval==="function"){
+    setInterval(()=>{if(typeof document!=="undefined"&&document.visibilityState==="visible")track("hb");},60000);
+    setInterval(()=>flushT(),90000);
+  }
+  if(typeof document!=="undefined"&&document.addEventListener){
+    document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")flushT(true);});
+  }
+  if(typeof window!=="undefined"&&window.addEventListener)window.addEventListener("pagehide",()=>flushT(true));
+}
+document.addEventListener("click",e=>{ // ações que contam p/ "qualidade de uso" (fase de captura, não interfere)
+  const ip=e.target.closest("[data-ident-pick]");
+  if(ip){ const m=MODEL.members.find(x=>x.uid===+ip.dataset.identPick);
+    if(m){localStorage.setItem(IDKEY,JSON.stringify({uid:m.uid,name:m.name,team:m.team}));$("identov").hidden=true;startT();} return; }
+  const ir=e.target.closest("[data-ident-reset]");
+  if(ir){ localStorage.removeItem(IDKEY); showIdent(); return; }
+  if(!usoOn()||!ident())return;
+  const a=e.target.closest('a[href*="app.clickup.com"]'); if(a){track("action","abrir tarefa");return;}
+  if(e.target.closest("[data-close]"))track("action","fechar tarefa");
+  else if(e.target.closest("#tfilter button"))track("action","filtro de time");
+  else if(e.target.closest("[data-preset]"))track("action","filtro de período");
+  else if(e.target.closest("[data-churn-open]"))track("action","abrir squad/pessoa");
+  else if(e.target.closest("[data-churn-tab]"))track("action","aba do churn");
+},true);
+const fmtMin=n=>{n=Math.round(n);return n>=60?Math.floor(n/60)+"h "+String(n%60).padStart(2,"0")+"m":n+"m";};
+function renderUso(){
+  if(ADMIN_PIN&&!window._usoOk){ const p=prompt("PIN de acesso à página Uso:");
+    if(p!==ADMIN_PIN){page="overview";render();return;} window._usoOk=true; }
+  $("topright").innerHTML="";
+  $("root").innerHTML='<div class="col"><div class="empty">Carregando dados de uso…</div></div>';
+  const cache=window._usoCache;
+  if(cache&&Date.now()-cache.at<300000)return drawUso(cache.evts);
+  if(typeof fetch==="undefined")return drawUso([]);
+  fetch(usoUrl()+"?days=15").then(r=>r.json()).then(d=>{window._usoCache={at:Date.now(),evts:d.events||[]};if(page==="uso")drawUso(d.events||[]);})
+    .catch(()=>{if(page==="uso")$("root").innerHTML='<div class="col"><div class="empty">Não consegui ler os dados de uso agora. Tente de novo em instantes.</div></div>';});
+}
+function drawUso(evts){
+  const WIN=15;
+  const byU={},pages={},byDay={};
+  evts.forEach(ev=>{ const u=byU[ev.uid]=byU[ev.uid]||{uid:+ev.uid,name:ev.name,hb:0,days:{},sids:{},acts:0};
+    const day=String(ev.ts).slice(0,10);
+    if(ev.type==="hb"){u.hb++;u.days[day]=1;byDay[day]=(byDay[day]||0)+1;}
+    if(ev.sid)u.sids[ev.sid]=1;
+    if(ev.type==="action")u.acts++;
+    if(ev.type==="page"&&ev.detail)pages[ev.detail]=(pages[ev.detail]||0)+1; });
+  const rows=MODEL.members.map(m=>{ const u=byU[m.uid]||{hb:0,days:{},sids:{},acts:0};
+    const days=Object.keys(u.days).length, sess=Object.keys(u.sids).length, aps=sess?u.acts/sess:0;
+    const score=u.hb?Math.round(100*(0.5*Math.min(1,days/(WIN*0.8))+0.3*Math.min(1,aps/6)+0.2*Math.min(1,u.hb/180))):0;
+    return {m:m,hb:u.hb,days:days,sess:sess,aps:aps,score:score}; }).sort((a,b)=>b.score-a.score||b.hb-a.hb);
+  const lbl=r=>!r.hb?["nunca abriu","c"]:r.score>=70?["usa todo dia","g"]:r.score>=40?["em formação","w"]:r.aps<1?["só olha, não age","w"]:["quase não usa","c"];
+  const used=rows.filter(r=>r.hb>0), totMin=rows.reduce((s,r)=>s+r.hb,0), totSess=rows.reduce((s,r)=>s+r.sess,0);
+  const avgScore=Math.round(rows.reduce((s,r)=>s+r.score,0)/Math.max(1,rows.length));
+  // uso × resultado: cruza dias de uso com atrasos reais do painel
+  const odByUid={}; (MODEL.overdue||[]).forEach(t=>odByUid[t.uid]=(odByUid[t.uid]||0)+1);
+  const hi=rows.filter(r=>r.days>=8), lo=rows.filter(r=>r.days<8);
+  const avgOd=g=>g.length?(g.reduce((s,r)=>s+(odByUid[r.m.uid]||0),0)/g.length).toFixed(1):"—";
+  const never=rows.filter(r=>!r.hb);
+  const nevBy={}; never.forEach(r=>{const t=r.m.team||"—";nevBy[t]=(nevBy[t]||0)+1;});
+  const nevTop=Object.entries(nevBy).sort((a,b)=>b[1]-a[1])[0];
+  // barras por dia (últimos 15)
+  const dayKeys=[]; for(let i=WIN-1;i>=0;i--){const d=new Date(Date.now()-i*864e5);dayKeys.push(ymd(d));}
+  const dayMax=Math.max(1,...dayKeys.map(k=>byDay[k]||0));
+  const pageTot=Object.values(pages).reduce((a,b)=>a+b,0)||1;
+  const PLBL={overview:"Visão geral",person:"Pessoas",churn:"Churn",times:"Ajustes",uso:"Uso"};
+  const topPages=Object.entries(pages).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  $("root").innerHTML=`<div class="col">
+    <div class="kpis">
+      <div class="kpi"><div class="n">${fmtMin(totMin)}</div><div class="l">Tempo ativo do time</div><div class="s">últimos ${WIN} dias</div></div>
+      <div class="kpi"><div class="n">${used.length} <span style="font-size:14px;color:var(--muted)">/ ${rows.length}</span></div><div class="l">Pessoas que usaram</div><div class="s">${never.length} nunca abriram</div></div>
+      <div class="kpi"><div class="n">${totSess?fmtMin(totMin/totSess):"—"}</div><div class="l">Sessão média</div><div class="s">${totSess} sessões</div></div>
+      <div class="kpi"><div class="n" style="color:${avgScore>=60?'var(--gd-ink)':avgScore>=35?'var(--hi-ink)':'var(--cr-ink)'}">${avgScore}</div><div class="l">Engajamento do time</div><div class="s">score 0–100</div></div>
+    </div>
+    <div class="card"><div class="card-h"><h3>Uso × resultado</h3><div class="r">o painel muda comportamento?</div></div>
+      <div class="pad" style="display:flex;flex-direction:column;gap:10px">
+        <div class="note">Quem usou o painel <b>8+ dias</b> no período tem em média <b>${avgOd(hi)}</b> tarefa(s) em atraso. Quem usou menos: <b>${avgOd(lo)}</b>.</div>
+        ${never.length?`<div class="note" style="border-left-color:var(--crit)"><b>${never.length} pessoa(s) nunca abriram o painel</b>${nevTop?` — ${nevTop[1]} do ${esc(nevTop[0])}`:""}. Vale um alinhamento.</div>`:""}
+      </div></div>
+    <div class="card"><div class="card-h"><h3>Por pessoa</h3><div class="r">últimos ${WIN} dias</div></div>
+      <div class="tblwrap"><table class="ctable"><thead><tr><th>Pessoa</th><th>Time</th><th class="r">Tempo ativo</th><th class="r">Dias</th><th class="r">Ações/sessão</th><th>Score</th><th></th></tr></thead>
+      <tbody>${rows.map(r=>{const L=lbl(r);const sc=r.score>=70?"var(--good)":r.score>=40?"var(--high)":"var(--crit)";
+        return `<tr><td><div style="display:flex;align-items:center;gap:9px">${avaHTML(r.m,"ava","width:28px;height:28px;border-radius:9px;font-size:10px")}<b>${esc(r.m.name)}</b></div></td>
+        <td>${mTeams(r.m).map(t=>`<span class="sqtag">${esc(t)}</span>`).join(" ")}</td>
+        <td class="r">${r.hb?`<b>${fmtMin(r.hb)}</b>`:"—"}</td><td class="r">${r.days}/${WIN}</td><td class="r">${r.sess?r.aps.toFixed(1):"—"}</td>
+        <td><span class="uscore"><span class="bar"><i style="width:${Math.max(3,r.score)}%;background:${sc}"></i></span><b style="color:${sc}">${r.score}</b></span></td>
+        <td><span class="upill ${L[1]}">${L[0]}</span></td></tr>`;}).join("")}</tbody></table></div></div>
+    <div class="card"><div class="card-h"><h3>Uso ao longo dos dias</h3><div class="r">minutos ativos do time por dia</div></div>
+      <div class="pad">${evts.length?`<div class="fbars">${dayKeys.map(k=>`<div class="fb" style="height:${Math.max(3,(byDay[k]||0)/dayMax*82)}px" title="${fmtBR(k)}: ${fmtMin(byDay[k]||0)}"></div>`).join("")}</div>
+        <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:11px;color:var(--muted)"><span>${fmtBR(dayKeys[0])}</span><span>${fmtBR(dayKeys[dayKeys.length-1])}</span></div>`
+      :'<div class="empty">Ainda sem eventos registrados — os dados começam a aparecer assim que o time usar o painel.</div>'}</div></div>
+    <div class="card"><div class="card-h"><h3>Páginas mais usadas</h3><div class="r">participação nas visitas</div></div>
+      ${topPages.length?`<div class="tblwrap"><table class="ctable"><tbody>${topPages.map(([p,n])=>`<tr><td>${esc(PLBL[p]||p)}</td><td class="r"><b>${Math.round(n/pageTot*100)}%</b></td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">Sem visitas registradas ainda.</div>'}</div>
+  </div>`;
+}
 function buildTeamFilter(){
   const set=new Set(), cnt={}; MODEL.members.forEach(m=>mTeams(m).forEach(t=>{set.add(t);cnt[t]=(cnt[t]||0)+1;}));
   const CANON=["ADFORCE","G.O.A.T","BULLS","E-SCALE","FENIX"];
@@ -1471,6 +1629,7 @@ function buildTeamFilter(){
 }
 buildTeamFilter();
 render();
+if(usoOn()){ showIdent(); if(ident())startT(); }
 </script>
 """
 
