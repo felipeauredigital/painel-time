@@ -31,12 +31,12 @@ HTML = r"""<style>
 :root[data-theme="dark"]{--page:#120e1c;--side:#0d0a16;--side-2:rgba(255,255,255,.08);--side-ink:#f2eefb;--side-muted:#a99cc6;--gold:#a67ef0;--gold-2:#b98cf5;--gold-soft:#241a3c;--magenta:#a67ef0;--deep:#160b28;--accent:#a67ef0;--side-accent:#b98cf5;--panel:#1a1428;--panel-2:#211934;--ink:#f0ecfa;--ink-2:#cfc7e2;--muted:#9a90b5;--line:#2c2440;--line-2:#392c52;--good:#3fbe80;--blue:#5b93da;--crit:#f0635e;--high:#e6a544;--med:#d8b84e;--today:#8a80a5;--gd-ink:#4ade80;--hi-ink:#fbbf24;--cr-ink:#f87171;--shadow-sm:0 1px 2px rgba(0,0,0,.4);--shadow:0 10px 30px rgba(0,0,0,.5);}
 *{box-sizing:border-box}
 h1,h2,.brand b,.card-h h3,.acard h3,.stat .n,.donut .c b,.banner h2{font-family:var(--display)}
-.wrap{font-family:var(--sans);background:var(--page);color:var(--ink);min-height:100vh;padding:18px;line-height:1.5;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
-.app{display:grid;grid-template-columns:224px 1fr;gap:26px;max-width:1340px;margin:0 auto;align-items:start}
-@media(max-width:860px){.wrap{padding:12px}.app{grid-template-columns:1fr;gap:16px}}
+.wrap{font-family:var(--sans);background:var(--page);color:var(--ink);min-height:100vh;padding:0;line-height:1.5;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+.app{display:grid;grid-template-columns:248px 1fr;gap:0;max-width:none;margin:0;align-items:start}
+@media(max-width:860px){.wrap{padding:0}.app{grid-template-columns:1fr;gap:0}.main{padding:16px}}
 
 /* sidebar roxa Aure */
-.side{background:linear-gradient(185deg,#28154a,#160b28);border-radius:20px;padding:18px 14px;position:sticky;top:18px;display:flex;flex-direction:column;gap:2px;min-height:calc(100vh - 36px);box-shadow:var(--shadow)}
+.side{background:linear-gradient(185deg,#28154a,#160b28);border-radius:0;padding:22px 16px;position:sticky;top:0;display:flex;flex-direction:column;gap:2px;min-height:100vh;box-shadow:2px 0 18px rgba(40,20,80,.07)}
 @media(max-width:860px){.side{position:static;min-height:0}}
 .brand{display:flex;align-items:center;gap:10px;padding:6px 8px 20px;color:var(--side-ink)}
 .brand .logo{display:inline-flex;flex-direction:column;align-items:flex-start;border:1.5px solid var(--side-accent);border-radius:9px;padding:4px 8px 3px;line-height:1;font-family:var(--display)}
@@ -67,10 +67,14 @@ h1,h2,.brand b,.card-h h3,.acard h3,.stat .n,.donut .c b,.banner h2{font-family:
 .themetog button[aria-pressed="true"]{background:var(--side-accent);color:#1c1030}
 
 /* main */
-.main{display:flex;flex-direction:column;gap:22px;min-width:0}
-.topbar{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap}
+.main{display:flex;flex-direction:column;gap:22px;min-width:0;padding:24px 36px 44px}
+.topbar{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;flex-wrap:wrap}
 .topbar h1{font-size:22px;font-weight:800;margin:0;letter-spacing:-.015em}
-.crumbs{display:flex;align-items:center;gap:9px;flex-wrap:wrap;font-family:var(--sans);font-size:21px;font-weight:800;letter-spacing:-.015em;margin:0;min-height:27px}
+.crumbs{display:flex;flex-direction:column;gap:5px;margin:0}
+.eyebrow{font-family:var(--sans);font-size:11px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:var(--accent);background:transparent;border:0;padding:0;cursor:pointer;text-align:left}
+.eyebrow:hover{opacity:.72}
+.pagetitle{font-family:var(--sans);font-size:30px;font-weight:800;letter-spacing:-.022em;line-height:1.04;margin:0;color:var(--ink)}
+@media(max-width:860px){.pagetitle{font-size:24px}}
 .crumbs .cr{background:transparent;border:0;font:inherit;color:var(--muted);cursor:pointer;padding:0;line-height:1.1}
 .crumbs .cr:hover{color:var(--ink)}
 .crumbs .sep{color:var(--muted);opacity:.5;font-weight:500;font-size:17px}
@@ -1346,19 +1350,17 @@ const ICON={
 };
 const CTABLBL={overview:"Resumo",history:"Histórico",projection:"Projeção",bonus:"Bonificação",lanc:"Lançamentos",insights:"Insights"};
 function setCrumbs(){
-  const sep='<span class="sep">›</span>';
-  const btn=(l,c)=>`<button class="cr" data-crumb="${c}">${esc(l)}</button>`;
-  const cur=l=>`<span class="cur">${esc(l)}</span>`;
-  let p=[];
-  if(page==="overview")p=[btn("Tarefas","overview"),cur("Visão geral")];
-  else if(page==="person")p=[btn("Tarefas","overview"),cur("Por pessoa")];
-  else if(page==="times")p=[cur("Ajustes"),cur("Times & metas")];
+  let el="",ec=null,title="";
+  if(page==="overview"){el="Tarefas";ec="overview";title="Visão geral";}
+  else if(page==="person"){el="Tarefas";ec="overview";title="Por pessoa";}
+  else if(page==="times"){el="Ajustes";title="Times & metas";}
   else if(page==="churn"){
-    if(churnScope.slice(0,3)==="sq:")p=[btn("Churn","churn"),cur(churnScope.slice(3))];
-    else if(churnScope.slice(0,3)==="pp:"){const u=+churnScope.slice(3);const pe=((MODEL.churn||{}).people||[]).find(x=>x.uid===u);p=[btn("Churn","churn"),cur(pe?pe.name:"Pessoa")];}
-    else p=[btn("Churn","churn"),cur(CTABLBL[churnTab]||"Resumo")];
+    if(churnScope.slice(0,3)==="sq:"){el="Churn";ec="churn";title=churnScope.slice(3);}
+    else if(churnScope.slice(0,3)==="pp:"){const u=+churnScope.slice(3);const pe=((MODEL.churn||{}).people||[]).find(x=>x.uid===u);el="Churn";ec="churn";title=pe?pe.name:"Pessoa";}
+    else {el="Churn";ec="churn";title=CTABLBL[churnTab]||"Resumo";}
   }
-  $("ptitle").innerHTML=p.join(sep);
+  const eye=ec?`<button class="eyebrow" data-crumb="${ec}">${esc(el)}</button>`:`<span class="eyebrow">${esc(el)}</span>`;
+  $("ptitle").innerHTML=eye+`<h1 class="pagetitle">${esc(title)}</h1>`;
 }
 function render(){
   $("gen").textContent=`Atualizado ${MODEL.generated}`;

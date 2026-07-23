@@ -383,7 +383,7 @@ def parse_churn_sheet_xlsx(xlsx_bytes):
                 if not mo:
                     continue
                 mes = "%s-%02d" % (m.group(2), mo)
-                feecol = respcol = hdr = None
+                feecol = respcol = varcol = hdr = None
                 for rr in range(hr, min(hr + 4, end)):
                     row = grid.get(rr, {})
                     fc = next((ci for ci, v in row.items() if str(v).strip() == "Fee Mensal"), None)
@@ -391,6 +391,8 @@ def parse_churn_sheet_xlsx(xlsx_bytes):
                         feecol, hdr = fc, rr
                         respcol = next((ci for ci, v in row.items()
                                         if str(v).strip().lower().startswith("respons")), None)
+                        varcol = next((ci for ci, v in row.items()
+                                       if str(v).strip() == "Fee Variável"), None)   # churn = Fee Mensal + Fee Variável
                         break
                 if feecol is None:
                     continue
@@ -411,14 +413,16 @@ def parse_churn_sheet_xlsx(xlsx_bytes):
                     if emp in ("Empresa", "M"):
                         continue
                     if fv is not None:
+                        vv = _cs_num(cells.get(varcol)) if varcol is not None else None
+                        fee_tot = fv + (vv or 0.0)      # churn do cliente = Fee Mensal + Fee Variável (o que está na aba)
                         resp = str(cells.get(respcol, "")).strip() if respcol is not None else ""
                         if resp and not any(ch.isalpha() for ch in resp):   # descarta data/serial na coluna Responsável
                             resp = ""
                         churns.append({"squad": squad, "mes": mes, "cliente": emp,
-                                       "fee": round(fv, 2), "resp": resp})
-                        block_sum += fv
-                ref = sheet_sum if sheet_sum is not None else sheet_tot
-                ok = ref is not None and abs(block_sum - ref) < 1.5
+                                       "fee": round(fee_tot, 2), "resp": resp})
+                        block_sum += fee_tot
+                ok = any(r is not None and abs(block_sum - r) < 1.5 for r in (sheet_tot, sheet_sum))
+                ref = sheet_tot if sheet_tot is not None else sheet_sum   # Total Churn (Fee Mensal + Fee Variável)
                 val_report.append((squad, mes, round(block_sum, 2), ref, ok))
 
         elif tipo.startswith("vari"):
