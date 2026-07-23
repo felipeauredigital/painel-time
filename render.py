@@ -408,7 +408,7 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,[t
 </div></div>
 <div class="identov" id="identov" hidden><div class="identcard">
   <h2>Quem está usando o painel?</h2>
-  <p>Escolha seu nome — usamos isso para entender o uso da ferramenta e melhorá-la. Dá para trocar depois em <b>Ajustes</b>.</p>
+  <p>Acesso restrito aos <b>heads de squad</b>. Escolha seu nome e digite seu PIN — usamos a identificação para entender o uso da ferramenta. Dá para trocar em <b>Ajustes</b>.</p>
   <div class="identgrid" id="identgrid"></div>
 </div></div>
 <div class="toast" id="toast" hidden><span id="toastmsg"></span><button id="toastundo">Desfazer</button></div>
@@ -1500,6 +1500,18 @@ $("toastundo").addEventListener("click",()=>{if(window._last){unhide(window._las
 /* ---------------- TELEMETRIA DE USO (identificação + eventos + página Uso) ---------------- */
 const USO_URL="";                    // URL /exec do Apps Script — vazio = recurso desligado
 const ADMIN_PIN="2026";              // PIN p/ abrir a página Uso (troque quando quiser)
+// Acesso: SOMENTE os heads de squad (+ adm). match = início do nome no ClickUp (p/ achar avatar/uid).
+const HEADS=[
+  {match:"pedro henrique", label:"Pedro Henrique", squad:"G.O.A.T",        pin:"4172"},
+  {match:"thulio",         label:"Thulio",         squad:"BULLS/SPARTANS", pin:"8305"},
+  {match:"thiago zagnoli", label:"Thiago Zagnoli", squad:"FENIX",          pin:"6941"},
+  {match:"lucas caldeira", label:"Lucas Caldeira", squad:"E-SCALE",        pin:"2537"},
+  {match:"matheus augusto",label:"Matheus Augusto",squad:"ADFORCE",        pin:"9814"},
+  {match:"__adm",          label:"Felipe",         squad:"Aure Digital · Adm", pin:"2026"},
+];
+const _nrmJs=n=>(n||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
+const headMember=h=>MODEL.members.find(m=>_nrmJs(m.name).startsWith(h.match))||null;
+const headUid=h=>{const m=headMember(h);if(m)return m.uid;let x=0;for(let i=0;i<h.match.length;i++)x=(x*31+h.match.charCodeAt(i))>>>0;return 900000+x%100000;};
 const IDKEY="clk_ident_v1", TQKEY="clk_tq_v1";
 const usoUrl=()=>USO_URL||localStorage.getItem("clk_uso_url")||"";
 const usoOn=()=>!!usoUrl();
@@ -1520,8 +1532,10 @@ function flushT(useBeacon){ if(!usoOn())return;
   }catch(e){}
 }
 function showIdent(){ if(!usoOn()||ident())return;
-  $("identgrid").innerHTML=MODEL.members.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(m=>
-    `<button data-ident-pick="${m.uid}">${avaHTML(m,"ava","width:30px;height:30px;border-radius:9px;font-size:11px")}<span>${esc(m.name)}<span class="tm">${esc(mTeams(m).join(" · "))}</span></span></button>`).join("");
+  $("identgrid").innerHTML=HEADS.map((h,i)=>{const m=headMember(h);
+    const av=m?avaHTML(m,"ava","width:30px;height:30px;border-radius:9px;font-size:11px")
+      :`<span class="ava" style="width:30px;height:30px;border-radius:9px;font-size:11px;background:linear-gradient(135deg,#8b5cf6,#6d28d9)">${esc(initials(h.label))}</span>`;
+    return `<button data-ident-pick="${i}">${av}<span>${esc(h.label)}<span class="tm">${esc(h.squad)}</span></span></button>`;}).join("");
   $("identov").hidden=false;
 }
 function startT(){ if(!usoOn()||!ident())return;
@@ -1538,8 +1552,11 @@ function startT(){ if(!usoOn()||!ident())return;
 }
 document.addEventListener("click",e=>{ // ações que contam p/ "qualidade de uso" (fase de captura, não interfere)
   const ip=e.target.closest("[data-ident-pick]");
-  if(ip){ const m=MODEL.members.find(x=>x.uid===+ip.dataset.identPick);
-    if(m){localStorage.setItem(IDKEY,JSON.stringify({uid:m.uid,name:m.name,team:m.team}));$("identov").hidden=true;startT();} return; }
+  if(ip){ const h=HEADS[+ip.dataset.identPick]; if(!h)return;
+    const p=prompt("PIN de "+h.label+":");
+    if(p!==h.pin){ if(p!=null)alert("PIN incorreto."); return; }
+    localStorage.setItem(IDKEY,JSON.stringify({uid:headUid(h),name:h.label,team:h.squad}));
+    $("identov").hidden=true;startT(); return; }
   const ir=e.target.closest("[data-ident-reset]");
   if(ir){ localStorage.removeItem(IDKEY); showIdent(); return; }
   if(!usoOn()||!ident())return;
@@ -1571,7 +1588,9 @@ function drawUso(evts){
     if(ev.sid)u.sids[ev.sid]=1;
     if(ev.type==="action")u.acts++;
     if(ev.type==="page"&&ev.detail)pages[ev.detail]=(pages[ev.detail]||0)+1; });
-  const rows=MODEL.members.map(m=>{ const u=byU[m.uid]||{hb:0,days:{},sids:{},acts:0};
+  const roster=HEADS.filter(h=>h.match!=="__adm").map(h=>{const m=headMember(h);
+    return {uid:headUid(h),name:h.label,team:h.squad,teams:[h.squad],avatar:m?m.avatar:null};});
+  const rows=roster.map(m=>{ const u=byU[m.uid]||{hb:0,days:{},sids:{},acts:0};
     const days=Object.keys(u.days).length, sess=Object.keys(u.sids).length, aps=sess?u.acts/sess:0;
     const score=u.hb?Math.round(100*(0.5*Math.min(1,days/(WIN*0.8))+0.3*Math.min(1,aps/6)+0.2*Math.min(1,u.hb/180))):0;
     return {m:m,hb:u.hb,days:days,sess:sess,aps:aps,score:score}; }).sort((a,b)=>b.score-a.score||b.hb-a.hb);
