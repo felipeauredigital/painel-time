@@ -356,7 +356,7 @@ def parse_churn_sheet_xlsx(xlsx_bytes):
     rels = ET.fromstring(z.read("xl/_rels/workbook.xml.rels"))
     relmap = {r.get("Id"): r.get("Target") for r in rels}
     teamup = set(x.upper() for x in SQUAD_ALL) | {"GOAT", "AURE"}
-    churns, variaveis, val_report = [], [], []
+    churns, variaveis, val_report, fees = [], [], [], []
     for s in wb.find(_XNS + "sheets"):
         name = (s.get("name") or "").strip()
         parts = name.split(" - ")
@@ -425,6 +425,28 @@ def parse_churn_sheet_xlsx(xlsx_bytes):
                 ref = sheet_tot if sheet_tot is not None else sheet_sum   # Total Churn (Fee Mensal + Fee Variável)
                 val_report.append((squad, mes, round(block_sum, 2), ref, ok))
 
+                # ---- FEE ativo do squad no mês = soma das DUPLAS (Account + Gestor) do bloco ----
+                # Cada dupla ("Ray + Carlos") tem Fee (col+1) e Fee + Variável (col+2). Soma tudo do squad.
+                fee_sum = feevar_sum = 0.0
+                npair = 0
+                for rr in range(hr, end):
+                    row = grid.get(rr, {})
+                    for ci, v in row.items():
+                        if not (isinstance(v, str) and " + " in v):
+                            continue
+                        if not any(ch.isalpha() for ch in v) or v.startswith("Mídia"):
+                            continue
+                        fee = _cs_num(row.get(ci + 1))
+                        if fee is None or fee <= 0:
+                            continue
+                        fvv = _cs_num(row.get(ci + 2))
+                        fee_sum += fee
+                        feevar_sum += fvv if (fvv is not None and fvv >= fee) else fee
+                        npair += 1
+                if npair:
+                    fees.append({"squad": squad, "mes": mes, "fee": round(fee_sum, 2),
+                                 "feeVar": round(feevar_sum, 2), "nPares": npair})
+
         elif tipo.startswith("vari"):
             # blocos da variável: "Controle Variável - JUNHO/2026" (ou "CONTROLE CHURN - .../mês/ano")
             vheads = [row for row in range(1, maxrow + 1)
@@ -461,7 +483,7 @@ def parse_churn_sheet_xlsx(xlsx_bytes):
                         sq = _TAB2SQUAD.get(sq.upper(), sq) if sq else None
                         if sq and sq not in EXCLUDE_SQUADS:
                             variaveis.append({"squad": sq, "mes": mes, "valor": round(val, 2)})
-    return {"churns": churns, "variaveis": variaveis, "val": val_report}
+    return {"churns": churns, "variaveis": variaveis, "val": val_report, "fees": fees}
 
 def fetch_churn_sheet():
     """Baixa a planilha de churn (export xlsx), parseia e cacheia. Fallback = cache."""
@@ -480,7 +502,7 @@ def fetch_churn_sheet():
         return out
     except Exception as e:
         print("  [aviso] não consegui ler a planilha de churn (%s); usando cache." % str(e)[:80])
-        return _load(CHURN_SHEET_CACHE, {"churns": [], "variaveis": [], "val": []})
+        return _load(CHURN_SHEET_CACHE, {"churns": [], "variaveis": [], "val": [], "fees": []})
 
 def fetch_empresas(token):
     """Baixa a lista 'Gestão de empresas' (fee, status, squad, account/gestor, datas de churn)."""
@@ -1176,7 +1198,7 @@ def analyze(tasks, record=False):
     mes_prev = "%04d-%02d" % (py, pm)   # variável deste mês vale na META do mês seguinte
     # FONTE do CHURN: planilha "[Controle] Churns e Bonificações" (o time preenche; o painel lê).
     # Fetch fresco nas rodadas de nuvem (record=True); --no-fetch usa o cache p/ não zerar.
-    sheet = fetch_churn_sheet() if record else _load(CHURN_SHEET_CACHE, {"churns": [], "variaveis": [], "val": []})
+    sheet = fetch_churn_sheet() if record else _load(CHURN_SHEET_CACHE, {"churns": [], "variaveis": [], "val": [], "fees": []})
     # Variável por (mês, squad). Ela é preenchida no início do mês seguinte e vale na bonificação
     # desse mês seguinte → a última disponível é a do mês anterior (mes_prev), que é a operativa agora.
     var_by = {}
@@ -1192,6 +1214,17 @@ def analyze(tasks, record=False):
     home_squad = {uid: r.get("team") for uid, r in roster.items() if r.get("team") and r["team"] != "—"}
     churn = build_churn(empresas, variavel, red_by, red_list, today=today,
                         sheet_churns=sheet.get("churns", []), home_squad=home_squad)
+    # ---- FEE ativo por (mês, squad) vindo da PLANILHA (soma das duplas). Fonte do Fee no painel. ----
+    fees_by_mes = {}
+    for e in sheet.get("fees", []):
+        s = e.get("squad") or "—"
+        if s in EXCLUDE_SQUADS:
+            continue
+        mm = fees_by_mes.setdefault(e.get("mes"), {})
+        cur = mm.setdefault(s, {"fee": 0.0, "feeVar": 0.0})
+        cur["fee"] = round(cur["fee"] + float(e.get("fee") or 0.0), 2)
+        cur["feeVar"] = round(cur["feeVar"] + float(e.get("feeVar") or 0.0), 2)
+    churn["feesByMes"] = fees_by_mes      # {mes: {squad: {fee, feeVar}}} — o frontend usa conforme o mês filtrado
     if record:
         record_fee_snapshot(churn, today)
         record_churn_history(churn, churn_history, today)   # acumula churn% por squad no mês atual

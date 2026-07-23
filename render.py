@@ -778,10 +778,17 @@ function renderChurn(){
   (C.clients||[]).filter(c=>c.saidaMes&&CHURN_GRP.has(c.grp)&&(selMes?c.saidaMes===selMes:true)&&!hiddenSq.has(c.squad))
     .forEach(c=>{new Set([...(c.accountUids||[]),...(c.gestorUids||[])]).forEach(u=>{aviByUid[u]=(aviByUid[u]||0)+c.fee;nByUid[u]=(nByUid[u]||0)+1;});});
   const pctOf=(base,avi)=>(base+avi)?+(avi/(base+avi)*100).toFixed(2):0;
+  // FEE ativo vem da PLANILHA (soma das duplas), conforme o mês filtrado. Variável = Fee+Variável − Fee.
+  // Fallback: se a planilha não tiver aquele squad/mês, usa o fee do ClickUp.
+  const feesM=(C.feesByMes&&C.feesByMes[selMes])||{};
   const squads=(C.squads||[]).filter(s=>s.squad!=="—"&&!hiddenSq.has(s.squad)&&teamOk(s.squad)).map(s=>{
     const avi=+(aviBySq[s.squad]||0).toFixed(2);
-    return Object.assign({},s,{feeAviso:avi,nAviso:nAviBySq[s.squad]||0,
-      churnPct:pctOf(s.feeAtivo,avi),churnPctVar:pctOf(s.feeAtivoVar!=null?s.feeAtivoVar:s.feeAtivo,avi)});});
+    const pf=feesM[s.squad];
+    const feeAtv=pf?pf.fee:s.feeAtivo;
+    const feeVar=pf?pf.feeVar:(s.feeAtivoVar!=null?s.feeAtivoVar:s.feeAtivo);
+    const vv=+Math.max(0,feeVar-feeAtv).toFixed(2);
+    return Object.assign({},s,{feeAtivo:feeAtv,feeAtivoVar:feeVar,variavel:vv,feeAviso:avi,nAviso:nAviBySq[s.squad]||0,
+      churnPct:pctOf(feeAtv,avi),churnPctVar:pctOf(feeVar,avi)});});
   const tFee=squads.reduce((s,x)=>s+x.feeAtivo,0), tVar=squads.reduce((s,x)=>s+(x.variavel||0),0);
   const tAtv=squads.reduce((s,x)=>s+FA(x),0), tAvi=squads.reduce((s,x)=>s+x.feeAviso,0);
   const tPct=(tAtv+tAvi)?+(tAvi/(tAtv+tAvi)*100).toFixed(2):0, z=zoneOf(tPct,m);
