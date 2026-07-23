@@ -697,6 +697,17 @@ def is_company(t):
         return False
     return bool(_cf_currency(t, CF_FEE) > 0 or _cf_date(t, CF_ENTRADA) or _cf_squad(t))
 
+def _nrm_name(s, base=False):
+    """Normaliza nome de cliente p/ casar planilha x ClickUp: sem acento, minúsculo, só [a-z0-9].
+    base=True descarta o conteúdo entre parênteses — 'Anapi (box, varejo e atacado)' -> 'anapi'."""
+    import unicodedata
+    s = unicodedata.normalize("NFKD", (s or "")).encode("ascii", "ignore").decode()
+    s = s.lower()
+    if base:
+        s = re.sub(r"\(.*?\)", " ", s)
+    s = re.sub(r"[^a-z0-9]+", " ", s)
+    return re.sub(r"\s+", " ", s).strip()
+
 def build_churn(empresas, variavel=None, reducoes=None, reducoes_list=None, today=None, sheet_churns=None):
     """Monta o modelo de churn — FONTE HÍBRIDA:
     - Base (carteira ativa, fee/time/account/gestor) = ClickUp, só clientes 'ativo'.
@@ -726,6 +737,13 @@ def build_churn(empresas, variavel=None, reducoes=None, reducoes_list=None, toda
             p["avatar"] = u["avatar"]
         return p
 
+    # Índice nome->empresa do ClickUp (TODOS os status, inclusive churn) p/ enriquecer o churn
+    # da planilha com Account/Gestor cadastrados na lista Gestão de empresas.
+    emp_idx = {}
+    def _reg_emp(key, rec):
+        if key and len(key) >= 3:
+            emp_idx.setdefault(key, []).append(rec)
+
     for t in empresas:
         if not is_company(t):
             continue
@@ -739,6 +757,11 @@ def build_churn(empresas, variavel=None, reducoes=None, reducoes_list=None, toda
         saida = _cf_date(t, CF_SAIDA)
         aviso = _cf_date(t, CF_AVISO)
         saida_mes = saida[:7] if saida else None
+        rec = {"id": t["id"], "acc": acc, "ges": ges, "squad": squad}
+        nk = _nrm_name(t.get("name")); bk = _nrm_name(t.get("name"), base=True)
+        _reg_emp(nk, rec)
+        if bk != nk:
+            _reg_emp(bk, rec)
         # STATUS + DATA DE SAÍDA definem o grupo:
         if st in ST_ATIVO:
             grp = "ativo"
@@ -784,7 +807,8 @@ def build_churn(empresas, variavel=None, reducoes=None, reducoes_list=None, toda
                              "gestor": ges[0]["name"] if ges else None})
 
     # ---- CHURN vindo da PLANILHA (substitui a detecção via status do ClickUp) ----
-    # Casa o "Responsável" da planilha (1º nome) com a pessoa ativa do mesmo squad.
+    # Account/Gestor vêm do CADASTRO DA EMPRESA no ClickUp (emp_idx, casado por nome).
+    # Fallback: coluna "Responsável" da planilha (1º nome -> pessoa do mesmo squad).
     STLBL = {"aviso": "aviso", "futuro": "a sair", "saiu": "finalizado"}
     name2uid = {}
     for pp in people.values():
@@ -792,32 +816,67 @@ def build_churn(empresas, variavel=None, reducoes=None, reducoes_list=None, toda
         fn = parts_n[0].lower() if parts_n else ""
         for sq_ in pp["squads"]:
             name2uid.setdefault((sq_, fn), pp["uid"])
+
+    def _emp_lookup(name, squad):
+        """Empresa do ClickUp p/ este cliente da planilha: nome exato -> sem parênteses -> prefixo único."""
+        nk = _nrm_name(name); bk = _nrm_name(name, base=True)
+        for k in (nk, bk):
+            cands = emp_idx.get(k)
+            if cands:
+                same = [r for r in cands if r["squad"] == squad]
+                return (same or cands)[0]
+        if len(bk) >= 5:                       # ex.: 'Klosett' x 'Klosett Charm', 'Aleva' x 'Aleva Shoes'
+            hits = [r for k, rl in emp_idx.items() if len(k) >= 5
+                    and (k.startswith(bk + " ") or bk.startswith(k + " ")) for r in rl]
+            same = [r for r in hits if r["squad"] == squad]
+            pick = same or hits
+            if len({r["id"] for r in pick}) == 1:
+                return pick[0]
+        return None
+
+    enr = tot = 0
     for c in (sheet_churns or []):
         squad = c.get("squad")
         mes = c.get("mes")
         fee = float(c.get("fee") or 0.0)
         if not squad or squad in EXCLUDE_SQUADS or not mes:
             continue
+        tot += 1
         grp = "aviso" if mes == cur_mes else ("futuro" if mes > cur_mes else "saiu")
         resp = (c.get("resp") or "").strip()
-        rfn = resp.split()[0].lower() if resp else ""
-        uid = name2uid.get((squad, rfn))
-        clients.append({"id": "", "name": c.get("cliente", ""), "fee": round(fee, 2),
+        emp = _emp_lookup(c.get("cliente", ""), squad)
+        if emp:
+            enr += 1
+            acc_u = emp["acc"][0] if emp["acc"] else None
+            ges_u = emp["ges"][0] if emp["ges"] else None
+            involved = [(u, "Account") for u in emp["acc"]] + [(u, "Gestor de Tráfego") for u in emp["ges"]]
+        else:
+            rfn = resp.split()[0].lower() if resp else ""
+            uid = name2uid.get((squad, rfn))
+            acc_u = {"uid": uid, "name": resp} if uid else None
+            ges_u = None
+            involved = [(people[uid], "Account")] if uid in people else []
+        clients.append({"id": (emp["id"] if emp else ""), "name": c.get("cliente", ""), "fee": round(fee, 2),
                         "status": STLBL[grp], "grp": grp, "squad": squad, "saidaMes": mes,
-                        "account": resp or None, "accountUid": uid,
-                        "gestor": None, "gestorUid": None,
-                        "accountUids": ([uid] if uid else []), "gestorUids": [],
+                        "account": (acc_u["name"] if acc_u else (resp or None)),
+                        "accountUid": (acc_u["uid"] if acc_u else None),
+                        "gestor": (ges_u["name"] if ges_u else None),
+                        "gestorUid": (ges_u["uid"] if ges_u else None),
+                        "accountUids": [u["uid"] for u, r in involved if r == "Account"],
+                        "gestorUids": [u["uid"] for u, r in involved if r != "Account"],
                         "entrada": None, "aviso": None, "saida": None, "churnDate": None})
         S = squad_bucket(squad)
         if grp == "aviso":
             S["feeAviso"] += fee; S["nAviso"] += 1
-            if uid in people:
-                people[uid]["feeAviso"] += fee; people[uid]["nAviso"] += 1
+            for u, r in involved:
+                p = person(u, r, squad); p["feeAviso"] += fee; p["nAviso"] += 1
         elif grp == "saiu":
             S["feeChurn"] += fee; S["nChurn"] += 1
-            if uid in people:
-                people[uid]["feeChurn"] += fee; people[uid]["nChurn"] += 1
+            for u, r in involved:
+                p = person(u, r, squad); p["feeChurn"] += fee; p["nChurn"] += 1
         # grp "futuro" entra só na projeção (via clients[]), não no churn do mês
+    if sheet_churns:
+        print(f"Churn (planilha): {enr} de {tot} clientes casados com o cadastro do ClickUp (Account/Gestor)")
 
     def churn_pct(atv, avi):
         base = atv + avi

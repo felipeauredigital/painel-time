@@ -9,7 +9,7 @@ def render(model):
     return HTML.replace("__MODEL__", json.dumps(model, ensure_ascii=False))
 
 HTML = r"""<style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
 :root{
   --page:#f6f3fc; --side:#1c1030; --side-2:rgba(255,255,255,.09); --side-ink:#f3eefb; --side-muted:#a99cc6;
   --gold:#7c3aed; --gold-2:#6d28d9; --gold-soft:#f1e9fd; --magenta:#7c3aed; --deep:#160b28; --accent:#7c3aed; --side-accent:#b98cf5;
@@ -17,7 +17,7 @@ HTML = r"""<style>
   --good:#22c55e; --blue:#3f7bc9; --crit:#e5484d; --high:#f59e0b; --med:#f2b90c; --today:#94a3b8; --gd-ink:#15803d; --hi-ink:#b45309; --cr-ink:#c0392b;
   --shadow-sm:0 1px 2px rgba(60,30,110,.05); --shadow:0 3px 12px rgba(70,35,130,.07);
   --r:15px; --r-sm:11px;
-  --sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --sans:"Manrope",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
   --display:var(--sans);
 }
 @media (prefers-color-scheme:dark){:root{
@@ -32,43 +32,45 @@ HTML = r"""<style>
 *{box-sizing:border-box}
 h1,h2,.brand b,.card-h h3,.acard h3,.stat .n,.donut .c b,.banner h2{font-family:var(--display)}
 .wrap{font-family:var(--sans);background:var(--page);color:var(--ink);min-height:100vh;padding:0;line-height:1.5;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
-.app{display:grid;grid-template-columns:248px 1fr;gap:0;max-width:none;margin:0;align-items:start}
+.app{display:grid;grid-template-columns:68px 1fr;gap:0;max-width:none;margin:0;align-items:start}
 @media(max-width:860px){.wrap{padding:0}.app{grid-template-columns:1fr;gap:0}.main{padding:16px}}
 
-/* sidebar roxa Aure */
-.side{background:linear-gradient(185deg,#28154a,#160b28);border-radius:0;padding:22px 16px;position:sticky;top:0;display:flex;flex-direction:column;gap:2px;min-height:100vh;box-shadow:2px 0 18px rgba(40,20,80,.07)}
-@media(max-width:860px){.side{position:static;min-height:0}}
-.brand{display:flex;align-items:center;gap:10px;padding:6px 8px 20px;color:var(--side-ink)}
-.brand .logo{display:inline-flex;flex-direction:column;align-items:flex-start;border:1.5px solid var(--side-accent);border-radius:9px;padding:4px 8px 3px;line-height:1;font-family:var(--display)}
-.brand .logo .top{display:flex;align-items:flex-start;font-weight:800;font-size:17px;letter-spacing:-.02em}
-.brand .logo .au{color:#fff} .brand .logo .re{color:var(--side-accent)}
-.brand .logo .dot{width:4px;height:4px;border-radius:50%;background:var(--side-accent);margin-left:2px;margin-top:2px}
-.brand .logo .dig{font-family:var(--sans);font-size:6.5px;font-weight:700;letter-spacing:.34em;color:var(--side-accent);margin-top:2px;align-self:flex-end}
-.brand .tag{font-size:12.5px;color:var(--side-muted);font-weight:600}
-.navlbl{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--side-muted);font-weight:700;padding:15px 12px 6px}
-.nav{background:transparent;border:0;width:100%;text-align:left;font-family:inherit;font-size:13.5px;font-weight:600;color:var(--side-muted);display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:10px;cursor:pointer;transition:background .12s,color .12s}
-.nav .ic{width:19px;display:inline-flex;align-items:center;justify-content:center;opacity:.9}
-.nav .ic svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+/* rail de ícones (Opção B): navegação compacta, rótulos em tooltip */
+.side{background:linear-gradient(185deg,#28154a,#160b28);border-radius:0;padding:14px 0;position:sticky;top:0;display:flex;flex-direction:column;align-items:center;gap:6px;min-height:100vh;box-shadow:2px 0 18px rgba(40,20,80,.07)}
+@media(max-width:860px){.side{position:static;min-height:0;flex-direction:row;padding:8px 12px;justify-content:center}}
+.rbrand{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#8b5cf6,#6d28d9);display:grid;place-items:center;font-family:var(--display);font-weight:800;font-size:16px;color:#fff;margin-bottom:12px}
+@media(max-width:860px){.rbrand{margin-bottom:0;margin-right:8px}}
+.nav{background:transparent;border:0;width:44px;height:44px;font-family:inherit;color:var(--side-muted);display:grid;place-items:center;border-radius:11px;cursor:pointer;transition:background .12s,color .12s;position:relative}
+.nav .ic{display:inline-flex;align-items:center;justify-content:center}
+.nav .ic svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .nav:hover{color:#fff;background:var(--side-2)}
-.nav[aria-current="true"]{background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:#fff}
-.nav[aria-current="true"] .ic{opacity:1}
-.tfilter{display:flex;flex-direction:column;gap:2px;padding:6px 2px 4px}
-.tfilter button{display:flex;align-items:center;gap:10px;width:100%;font-family:inherit;font-size:12.5px;font-weight:600;color:var(--side-muted);background:transparent;border:0;border-radius:9px;padding:8px 11px;cursor:pointer;text-align:left}
-.tfilter button:hover{color:#fff;background:var(--side-2)}
-.tfilter button[aria-pressed="true"]{background:var(--side-2);color:#fff}
-.tfilter .tdot{width:10px;height:10px;border-radius:3px;flex:none}
-.tfilter button[aria-pressed="true"] .tdot{box-shadow:0 0 0 2px rgba(255,255,255,.22)}
-.tfilter .tct{margin-left:auto;font-size:10.5px;font-weight:700;color:var(--side-muted);background:var(--side-2);border-radius:999px;padding:1px 7px;min-width:20px;text-align:center}
-.tfilter button[aria-pressed="true"] .tct{color:#fff;background:rgba(255,255,255,.16)}
-.side-foot{margin-top:auto;display:flex;flex-direction:column;gap:9px;padding-top:14px}
-.gen{font-size:11px;color:var(--side-muted);padding:0 12px}
-.themetog{display:flex;background:var(--side-2);border-radius:10px;padding:3px;gap:3px}
-.themetog button{flex:1;font-family:inherit;font-size:12px;font-weight:600;color:var(--side-muted);background:transparent;border:0;border-radius:7px;padding:7px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
+.nav[aria-current="true"]{background:rgba(255,255,255,.14);color:#fff}
+.nav[aria-current="true"]::before{content:"";position:absolute;left:-12px;width:3.5px;height:22px;border-radius:3px;background:var(--side-accent)}
+@media(max-width:860px){.nav[aria-current="true"]::before{left:auto;top:-8px;width:22px;height:3.5px}}
+.nav[data-tip]:hover::after{content:attr(data-tip);position:absolute;left:56px;top:50%;transform:translateY(-50%);background:#181028;color:#fff;font-size:11.5px;font-weight:700;padding:5px 10px;border-radius:7px;white-space:nowrap;z-index:30;pointer-events:none}
+@media(max-width:860px){.nav[data-tip]:hover::after{left:50%;top:auto;bottom:-32px;transform:translateX(-50%)}}
+.raildot{position:absolute;top:8px;right:8px;width:8px;height:8px;border-radius:50%;background:#f43f5e;border:2px solid #241447}
+.side .sp{flex:1}
+/* filtro de time: pílulas claras no topo da página */
+#teamfilterwrap{display:flex;min-width:0}
+.tfilter{display:flex;flex-direction:row;gap:2px;background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:3px;flex-wrap:wrap}
+.tfilter button{display:flex;align-items:center;gap:7px;font-family:inherit;font-size:12px;font-weight:700;color:var(--muted);background:transparent;border:0;border-radius:8px;padding:6px 10px;cursor:pointer}
+.tfilter button:hover{color:var(--ink);background:var(--panel-2)}
+.tfilter button[aria-pressed="true"]{background:var(--gold);color:#fff}
+.tfilter .tdot{width:9px;height:9px;border-radius:3px;flex:none}
+.tfilter button[aria-pressed="true"] .tdot{box-shadow:0 0 0 2px rgba(255,255,255,.35)}
+.tfilter .tct{font-size:10px;font-weight:700;color:var(--muted);background:var(--panel-2);border-radius:999px;padding:1px 6px;min-width:18px;text-align:center}
+.tfilter button[aria-pressed="true"] .tct{color:#fff;background:rgba(255,255,255,.2)}
+.gen{font-size:11px;color:var(--muted)}
+.themetog{display:flex;flex-direction:column;background:var(--side-2);border-radius:10px;padding:3px;gap:3px;margin-top:6px}
+@media(max-width:860px){.themetog{flex-direction:row;margin-top:0;margin-left:8px}}
+.themetog button{font-family:inherit;font-size:13px;font-weight:600;color:var(--side-muted);background:transparent;border:0;border-radius:7px;padding:7px 9px;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .themetog button[aria-pressed="true"]{background:var(--side-accent);color:#1c1030}
 
 /* main */
-.main{display:flex;flex-direction:column;gap:22px;min-width:0;padding:24px 36px 44px}
+.main{display:flex;flex-direction:column;gap:22px;min-width:0;padding:24px 40px 44px;max-width:1380px}
 .topbar{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;flex-wrap:wrap}
+.topctl{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
 .topbar h1{font-size:22px;font-weight:800;margin:0;letter-spacing:-.015em}
 .crumbs{display:flex;flex-direction:column;gap:5px;margin:0}
 .eyebrow{font-family:var(--sans);font-size:11px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:var(--accent);background:transparent;border:0;padding:0;cursor:pointer;text-align:left}
@@ -320,39 +322,50 @@ h1,h2,.brand b,.card-h h3,.acard h3,.stat .n,.donut .c b,.banner h2{font-family:
 .peoplemini{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
 .pmchip{display:flex;align-items:center;gap:7px;background:var(--panel-2);border:1px solid var(--line);border-radius:999px;padding:4px 11px 4px 4px;font-size:11.5px;font-weight:600}
 
+/* --- KPIs com contexto: delta vs mês anterior, anel de meta, sparkline --- */
+.delta{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:999px;width:fit-content;white-space:nowrap}
+.delta.up{background:color-mix(in srgb,var(--crit) 12%,transparent);color:var(--cr-ink)}
+.delta.dn{background:color-mix(in srgb,var(--good) 14%,transparent);color:var(--gd-ink)}
+.kspark{margin-top:4px;display:block}
+.kpi .delta{margin-top:6px;margin-right:4px}
+.kring{display:flex;align-items:center;gap:11px}
+.ring{width:46px;height:46px;border-radius:50%;flex:none;display:grid;place-items:center;position:relative}
+.ring::before{content:"";position:absolute;width:34px;height:34px;background:var(--panel);border-radius:50%}
+/* busca dentro do card + mini avatar de pessoa na tabela */
+.tsearch{font-family:inherit;font-size:12px;color:var(--ink);background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:6px 10px;min-width:150px}
+.tsearch::placeholder{color:var(--muted)}
+.avmini{width:21px;height:21px;border-radius:50%;background:var(--gold-soft);color:var(--gold-2);display:inline-grid;place-items:center;font-size:8.5px;font-weight:800;flex:none}
+.pcell{display:inline-flex;align-items:center;gap:6px}
+.ctable tfoot td{background:var(--panel-2);font-weight:800;border-top:1.5px solid var(--line-2)}
+
 /* --- acessibilidade: foco de teclado + alvos de clique --- */
 a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
-.nav:focus-visible,.tfilter button:focus-visible,.themetog button:focus-visible{outline-color:var(--side-accent)}
+.nav:focus-visible,.themetog button:focus-visible{outline-color:var(--side-accent)}
 .cx{min-width:26px;min-height:26px;display:inline-grid;place-items:center;padding:2px}
 .minibtn,.closebtn{min-height:28px}
 </style>
 
 <div class="wrap"><div class="app">
   <aside class="side">
-    <div class="brand"><span class="logo"><span class="top"><span class="au">Au</span><span class="re">re</span><span class="dot"></span></span><span class="dig">DIGITAL</span></span><span class="tag">· Times</span></div>
-    <div class="navlbl">Tarefas</div>
-    <button class="nav" data-page="overview" aria-current="true"><span class="ic"><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span> Visão geral</button>
-    <button class="nav" data-page="person"><span class="ic"><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c0-3.6 3.2-5.6 7-5.6s7 2 7 5.6"/></svg></span> Por pessoa</button>
-    <div class="navlbl">Churn</div>
-    <button class="nav" data-page="churn"><span class="ic"><svg aria-hidden="true" viewBox="0 0 24 24"><polyline points="3 6 10 13 14 9 21 17"/><polyline points="21 12 21 17 16 17"/></svg></span> Controle de churn</button>
-    <div id="teamfilterwrap">
-      <div class="navlbl">Time</div>
-      <div class="tfilter" id="tfilter"><!-- montado dinamicamente a partir dos times presentes -->
-      </div>
-    </div>
-    <div class="side-foot">
-      <div class="navlbl" style="padding-top:0">Ajustes</div>
-      <button class="nav" data-page="times"><span class="ic"><svg aria-hidden="true" viewBox="0 0 24 24"><line x1="4" y1="8" x2="20" y2="8"/><circle cx="9" cy="8" r="2.4"/><line x1="4" y1="16" x2="20" y2="16"/><circle cx="15" cy="16" r="2.4"/></svg></span> Times &amp; metas</button>
-      <div class="gen" id="gen"></div>
-      <div class="themetog" id="themetog">
-        <button data-t="light" aria-pressed="false">☀ Light</button>
-        <button data-t="dark" aria-pressed="false">☾ Dark</button>
-      </div>
+    <div class="rbrand" title="Aure Digital · Times">A</div>
+    <button class="nav" data-page="overview" aria-current="true" data-tip="Visão geral" aria-label="Visão geral"><span class="ic"><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span></button>
+    <button class="nav" data-page="person" data-tip="Por pessoa" aria-label="Por pessoa"><span class="ic"><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c0-3.6 3.2-5.6 7-5.6s7 2 7 5.6"/></svg></span></button>
+    <button class="nav" data-page="churn" data-tip="Controle de churn" aria-label="Controle de churn"><span class="ic"><svg aria-hidden="true" viewBox="0 0 24 24"><polyline points="3 6 10 13 14 9 21 17"/><polyline points="21 12 21 17 16 17"/></svg></span><span class="raildot" id="raildot" hidden></span></button>
+    <div class="sp"></div>
+    <button class="nav" data-page="times" data-tip="Times &amp; metas" aria-label="Times e metas"><span class="ic"><svg aria-hidden="true" viewBox="0 0 24 24"><line x1="4" y1="8" x2="20" y2="8"/><circle cx="9" cy="8" r="2.4"/><line x1="4" y1="16" x2="20" y2="16"/><circle cx="15" cy="16" r="2.4"/></svg></span></button>
+    <div class="themetog" id="themetog">
+      <button data-t="light" aria-pressed="false" title="Tema claro" aria-label="Tema claro">☀</button>
+      <button data-t="dark" aria-pressed="false" title="Tema escuro" aria-label="Tema escuro">☾</button>
     </div>
   </aside>
 
   <main class="main">
-    <div class="topbar"><nav class="crumbs" id="ptitle" aria-label="Navegação"></nav><div id="topright"></div></div>
+    <div class="topbar"><nav class="crumbs" id="ptitle" aria-label="Navegação"></nav>
+      <div class="topctl">
+        <div id="teamfilterwrap"><div class="tfilter" id="tfilter"><!-- times montados dinamicamente --></div></div>
+        <div id="topright"></div>
+      </div>
+    </div>
     <div class="period" id="periodbar" title="Filtra conclusões/adiamentos (Tarefas) e saídas/histórico de fee (Churn). O churn atual é sempre o estado do momento.">
       <span class="plabel">Período</span>
       <div class="ppills" id="periodpresets">
@@ -369,6 +382,7 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,[t
       </div>
     </div>
     <div id="root"></div>
+    <div class="gen" id="gen"></div>
     <div class="foot" id="foot"></div>
   </main>
 </div></div>
@@ -778,6 +792,20 @@ function renderChurn(){
   }).filter(p=>(p.nAtivo+p.nAviso)>0).sort((a,b)=>b.churnPct-a.churnPct||b.feeAviso-a.feeAviso);
   const fh=Object.entries(MODEL.feeHistory||{}).filter(([d])=>inRng(d)).sort((a,b)=>a[0]<b[0]?-1:1);
   const fhMax=Math.max(1,...fh.map(([,v])=>v.feeAtivo||0));
+  // --- contexto p/ os KPIs: mês anterior (delta) + histórico p/ sparkline + anel de meta ---
+  const prevMes=selMes?(mm=>{const y=+mm.slice(0,4),mo=+mm.slice(5,7);return mo===1?(y-1)+"-12":y+"-"+p2(mo-1);})(selMes):null;
+  const prevCli=prevMes?(C.clients||[]).filter(c=>c.saidaMes===prevMes&&CHURN_GRP.has(c.grp)&&!hiddenSq.has(c.squad)&&teamOk(c.squad)):[];
+  const pAvi=prevCli.reduce((s,c)=>s+c.fee,0), pN=prevCli.length;
+  const dAvi=tAvi-pAvi, dN=nAviso-pN, prevLbl=prevMes?projMesLbl(prevMes):"";
+  const deltaChip=(v,fmt)=>!prevMes?"":v===0?`<span class="delta dn">= igual a ${prevLbl}</span>`:
+    `<span class="delta ${v>0?'up':'dn'}">${v>0?'▲ +':'▼ −'}${fmt(Math.abs(v))} vs ${prevLbl}</span>`;
+  const fhAll=Object.entries(MODEL.feeHistory||{}).sort((a,b)=>a[0]<b[0]?-1:1).slice(-30);
+  let kspark="";
+  if(fhAll.length>1){const vs=fhAll.map(([,v])=>v.feeAtivo||0),mn=Math.min(...vs),mx=Math.max(...vs),rg=(mx-mn)||1;
+    const pts=vs.map((v,i)=>`${(i/(vs.length-1)*116).toFixed(1)},${(22-(v-mn)/rg*18).toFixed(1)}`).join(" ");
+    kspark=`<svg class="kspark" width="120" height="26" viewBox="0 0 120 26" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="var(--gold)" stroke-width="2"/><circle cx="116" cy="${(22-(vs[vs.length-1]-mn)/rg*18).toFixed(1)}" r="2.6" fill="var(--gold)"/></svg>`;}
+  const ringFrac=Math.min(1,tPct/Math.max(m.meta*2,tPct*1.08,.01));
+  const ringHTML=`<span class="ring" style="background:conic-gradient(${ZONEC[z]} 0 ${(ringFrac*100).toFixed(1)}%,var(--panel-2) ${(ringFrac*100).toFixed(1)}% 100%)" aria-hidden="true"><b style="position:relative;font-size:10.5px;font-weight:800;color:${ZONEC[z]}">${Math.round(tPct*10)/10}%</b></span>`;
   const squadRow=s=>{const zz=zoneOf(CP(s),m);return `<div class="sqrow" data-churn-open="sq:${esc(s.squad)}" style="cursor:pointer" title="Abrir ${esc(s.squad)}">
     <div><div class="sqn">${esc(s.squad)}</div><div class="sqmeta">${s.nAtivo} ativos · ${s.nAviso} em aviso</div></div>
     <div class="barcell">${attainBar(CP(s),m)}<div style="display:flex;justify-content:space-between;gap:8px;margin-top:5px;font-size:11px;color:var(--muted)">
@@ -793,11 +821,11 @@ function renderChurn(){
     ${(C.semDataSaida||[]).length?`<div class="note" style="border-left-color:var(--crit)"><b>${C.semDataSaida.length} cliente(s) em status de churn sem Data de Saída</b> — sem a data não dá pra saber em que mês o churn entra, então ficam de fora da conta. Preencha a Data de Saída no ClickUp: ${C.semDataSaida.slice(0,8).map(c=>esc(c.name)+" ("+esc(c.status)+")").join(" · ")}${C.semDataSaida.length>8?" …":""}.</div>`:''}
 
     <div class="kpis">
-      <div class="kpi"><div class="n">${BRL(tFee)}</div><div class="l">Fee ativo</div><div class="s">${nAtivo} clientes</div></div>
+      <div class="kpi"><div class="n">${BRL(tFee)}</div><div class="l">Fee ativo</div><div class="s">${nAtivo} clientes</div>${kspark}</div>
       <div class="kpi"><div class="n" style="color:var(--gold-2)">${BRL(tVar)}</div><div class="l">Variável</div><div class="s">comissão do mês</div></div>
       <div class="kpi"><div class="n">${BRL(tFee+tVar)}</div><div class="l">Fee + Variável</div><div class="s">base total</div></div>
-      <div class="kpi"><div class="n" style="color:var(--crit)">${BRL(tAvi)}</div><div class="l">Churn de ${mesLbl}</div><div class="s">${nAviso} cliente(s) saindo</div></div>
-      <div class="kpi"><div class="n" style="color:${ZONEC[z]}">${tPct}%</div><div class="l">Churn (${useVar?'fee+var':'fee'})</div><div class="s"><span class="zbadge ${z}">${ZONEL[z]}</span></div></div>
+      <div class="kpi"><div class="n" style="color:var(--crit)">${BRL(tAvi)}</div><div class="l">Churn de ${mesLbl}</div><div class="s">${nAviso} cliente(s) saindo</div>${deltaChip(dAvi,v=>BRL(v))}${prevMes?` ${deltaChip(dN,v=>v+" cliente(s)")}`:""}</div>
+      <div class="kpi"><div class="kring">${ringHTML}<div><div class="n" style="color:${ZONEC[z]};font-size:20px">${tPct}%</div><div class="l">Churn (${useVar?'fee+var':'fee'}) · meta ≤ ${m.meta}%</div><div class="s"><span class="zbadge ${z}">${ZONEL[z]}</span></div></div></div></div>
     </div>
 
     <div class="card"><div class="card-h"><h3>Atingimento de meta — ${team==="all"?"agência":esc(team)}</h3><div class="r">churn ${tPct}% · meta ≤ ${m.meta}% · super ≤ ${m.sup}%</div></div>
@@ -818,11 +846,14 @@ function renderChurn(){
         <td class="r fee">${BRL(p.feeAtivo)}</td><td class="r fee" style="color:${p.variavel?'var(--gold-2)':'var(--muted)'}">${p.variavel?BRL(p.variavel):"—"}</td><td class="r fee" style="color:${p.feeAviso?'var(--crit)':'var(--muted)'}">${p.feeAviso?BRL(p.feeAviso):"—"}</td>
         <td class="r"><b style="color:${ZONEC[zz]}">${CP(p)}%</b></td><td>${attainBar(CP(p),m)}</td></tr>`;}).join("")||'<tr><td colspan="7" class="empty">Sem pessoas.</td></tr>'}</tbody></table></div></div>
 
-    <div class="card"><div class="card-h"><h3>Churn de ${mesLbl}</h3><div class="r">Data de Saída em ${mesLbl} · ${avisoClients.length} · ${BRL(tAvi)}</div></div>
-      ${avisoClients.length?`<div class="tblwrap"><table class="ctable"><thead><tr><th>Cliente</th><th>Squad</th><th>Status</th><th>Account</th><th>Gestor</th><th class="r">Fee</th><th class="r">Data de Saída</th></tr></thead>
-      <tbody>${avisoClients.map(c=>`<tr><td><a class="cname" href="https://app.clickup.com/t/${c.id}" target="_blank" rel="noopener">${esc(c.name)}</a></td>
-        <td><span class="sqtag">${esc(c.squad)}</span></td><td>${esc(c.status||"—")}</td><td>${esc(c.account||"—")}</td><td>${esc(c.gestor||"—")}</td>
-        <td class="r fee" style="color:var(--crit)">${BRL(c.fee)}</td><td class="r">${c.saida?fmtBR(c.saida):"—"}</td></tr>`).join("")}</tbody></table></div>`
+    <div class="card"><div class="card-h"><h3>Churn de ${mesLbl}</h3><div class="r"><span>${avisoClients.length} · ${BRL(tAvi)}</span><input type="search" class="tsearch" id="clisearch" placeholder="filtrar cliente…" aria-label="Filtrar cliente"></div></div>
+      ${avisoClients.length?`<div class="tblwrap"><table class="ctable" id="chtbl"><thead><tr><th>Cliente</th><th>Squad</th><th>Status</th><th>Account</th><th>Gestor</th><th class="r">Fee</th></tr></thead>
+      <tbody>${avisoClients.map(c=>`<tr data-n="${esc((c.name||"").toLowerCase())}"><td>${c.id?`<a class="cname" href="https://app.clickup.com/t/${c.id}" target="_blank" rel="noopener">${esc(c.name)}</a>`:`<span class="cname">${esc(c.name)}</span>`}</td>
+        <td><span class="sqtag">${esc(c.squad)}</span></td><td>${esc(c.status||"—")}</td>
+        <td>${c.account?`<span class="pcell"><span class="avmini">${esc(initials(c.account))}</span>${esc(c.account.split(" ").slice(0,2).join(" "))}</span>`:"—"}</td>
+        <td>${c.gestor?`<span class="pcell"><span class="avmini">${esc(initials(c.gestor))}</span>${esc(c.gestor.split(" ").slice(0,2).join(" "))}</span>`:"—"}</td>
+        <td class="r fee" style="color:var(--crit)">${BRL(c.fee)}</td></tr>`).join("")}</tbody>
+      <tfoot><tr><td colspan="5">Total · ${avisoClients.length} cliente(s)</td><td class="r fee" style="color:var(--crit)">${BRL(tAvi)}</td></tr></tfoot></table></div>`
       :`<div class="empty">Nenhum churn com Data de Saída em ${mesLbl}</div>`}</div>
 
     <div class="card"><div class="card-h"><h3>Fee ativo ao longo do tempo</h3><div class="r">${fmtBR(dFrom)} → ${fmtBR(dTo)}</div></div>
@@ -1367,6 +1398,8 @@ function render(){
   $("foot").innerHTML=`Histórico ${MODEL.window.from} → ${MODEL.window.to}. "✓ Fechar" oculta tarefas já concluídas/cliente que saiu (salvo neste navegador, com desfazer). As datas em "Comportamento" filtram o histórico.`;
   [...$("tfilter").children].forEach(x=>x.setAttribute("aria-pressed",x.dataset.team===team));
   document.querySelectorAll(".nav").forEach(n=>n.setAttribute("aria-current",n.dataset.page===page));
+  const _ct=(MODEL.churn||{}).totals||{};                          // alerta no rail: churn acima da meta
+  $("raildot").hidden=!((_ct.churnPct||0)>metas().meta);
   const cur=document.documentElement.getAttribute("data-theme");
   [...$("themetog").children].forEach(x=>x.setAttribute("aria-pressed",cur?x.dataset.t===cur:false));
   $("df").value=dFrom; $("dt").value=dTo;
@@ -1419,6 +1452,10 @@ document.addEventListener("click",e=>{
   const ic=e.target.closest("[data-import-cfg]"); if(ic){$("cfgfile").click();return;}
   const sm=e.target.closest("[data-save-metas]"); if(sm){const mm=metas();mm.meta=parseFloat($("metaInput").value);mm.sup=parseFloat($("supInput").value);if(!(mm.meta>=0))mm.meta=5;if(!(mm.sup>=0))mm.sup=3;setMetas(mm);showToast("Metas salvas.");render();return;}
   const ts=e.target.closest("[data-toggle-squad]"); if(ts){const mm=metas();mm.hidden=mm.hidden||[];const s=ts.dataset.toggleSquad,i=mm.hidden.indexOf(s);if(i>=0)mm.hidden.splice(i,1);else mm.hidden.push(s);setMetas(mm);render();return;}
+});
+document.addEventListener("input",e=>{
+  if(e.target.id==="clisearch"){const q=e.target.value.trim().toLowerCase();
+    document.querySelectorAll("#chtbl tbody tr").forEach(tr=>{tr.style.display=(tr.dataset.n||"").includes(q)?"":"none";});}
 });
 document.addEventListener("change",e=>{
   if(e.target.id==="df"){dFrom=e.target.value;render();}
