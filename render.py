@@ -1440,7 +1440,7 @@ function render(){
   $("teamfilterwrap").style.display=(page==="overview"||page==="person"||page==="churn")?"":"none";
   const churnNoPeriod=(page==="churn"&&(churnTab==="history"||churnTab==="projection"||churnTab==="bonus"));
   $("periodbar").style.display=(page==="times"||page==="uso"||churnNoPeriod)?"none":"";
-  $("navuso").hidden=!usoOn();
+  $("navuso").hidden=!usoOn()||!(ident()&&ident().adm);   // página Uso: só o admin vê (e ainda pede PIN)
   if(window._lastPage!==page){window._lastPage=page;track("page",page);}
   if(page==="overview")renderOverview();
   else if(page==="person")renderPerson();
@@ -1555,8 +1555,8 @@ document.addEventListener("click",e=>{ // ações que contam p/ "qualidade de us
   if(ip){ const h=HEADS[+ip.dataset.identPick]; if(!h)return;
     const p=prompt("PIN de "+h.label+":");
     if(p!==h.pin){ if(p!=null)alert("PIN incorreto."); return; }
-    localStorage.setItem(IDKEY,JSON.stringify({uid:headUid(h),name:h.label,team:h.squad}));
-    $("identov").hidden=true;startT(); return; }
+    localStorage.setItem(IDKEY,JSON.stringify({uid:headUid(h),name:h.label,team:h.squad,adm:h.match==="__adm"}));
+    $("identov").hidden=true;startT();render(); return; }
   const ir=e.target.closest("[data-ident-reset]");
   if(ir){ localStorage.removeItem(IDKEY); showIdent(); return; }
   if(!usoOn()||!ident())return;
