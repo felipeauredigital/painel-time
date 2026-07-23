@@ -293,6 +293,191 @@ def fetch_planilha_lancamentos():
         print("  [aviso] não consegui ler a planilha (%s); usando cache." % str(e)[:80])
         return _load(PLANILHA_CACHE, {"reducoes": [], "variaveis": []})
 
+# ---------------------------------------------------------------------------
+# Fonte de CHURN: planilha "[Controle] Churns e Bonificações".
+# O fee ativo continua vindo do ClickUp; daqui vem só o CHURN (saídas por mês/time)
+# e a VARIÁVEL. Abas: "{TIME} - Churn" (blocos mensais) e "Aure - Variável".
+# ---------------------------------------------------------------------------
+CHURN_SHEET_ID = "10M2woH8TCalSE5qqXKZH9sg3JSOqGdPc6zjWwKB8P9g"
+CHURN_SHEET_CACHE = os.path.join(DATA, "churn_sheet_cache.json")
+_CS_BLOCK = re.compile(r"CONTROLE CHURN\s*-?\s*(?:\d+\s*/\s*)?([A-Za-zçÇ]+)\s*/\s*(\d{4})", re.I)
+_CS_MESYEAR = re.compile(r"([A-Za-zçÇ]+)\s*/\s*(\d{4})")   # p/ blocos de variável ("... - JUNHO/2026")
+_TAB2SQUAD = {"GOAT": "G.O.A.T"}   # nome da aba -> nome do squad no painel
+_MES_ABBR = {"JAN": 1, "FEV": 2, "MAR": 3, "ABR": 4, "MAI": 5, "JUN": 6,
+             "JUL": 7, "AGO": 8, "SET": 9, "OUT": 10, "NOV": 11, "DEZ": 12}
+
+def _cs_month(nm):
+    nm = (nm or "").upper().strip()
+    return MESES_PT.get(nm) or _MES_ABBR.get(nm[:3])
+
+def _cs_num(x):
+    if x is None:
+        return None
+    s = str(x).strip()
+    try:
+        return float(s)                      # número cru: "6000.0"
+    except Exception:
+        pass
+    s = s.replace("R$", "").replace(" ", "")
+    if "," in s:
+        s = s.replace(".", "").replace(",", ".")   # BR: 1.700,00
+    try:
+        return float(s)
+    except Exception:
+        return None
+
+def _cs_grid(z, path, ss):
+    grid = {}
+    for c in ET.fromstring(z.read(path)).iter(_XNS + "c"):
+        ref, t, v = c.get("r"), c.get("t"), c.find(_XNS + "v")
+        if v is None or not ref:
+            continue
+        val = ss[int(v.text)] if t == "s" else v.text
+        mm = re.match(r"([A-Z]+)(\d+)", ref)
+        col = 0
+        for ch in mm.group(1):
+            col = col * 26 + (ord(ch) - 64)
+        grid.setdefault(int(mm.group(2)), {})[col - 1] = val
+    return grid
+
+def parse_churn_sheet_xlsx(xlsx_bytes):
+    """Lê a planilha de churn (stdlib). Retorna:
+      {"churns":[{squad,mes,cliente,fee,resp}], "variaveis":[{squad,mes,valor}], "val":[(squad,mes,meu,ref,ok)]}
+    - churns: abas '{TIME} - Churn', blocos 'CONTROLE CHURN - .../{mes}/{ano}', coluna Fee Mensal.
+      Cada bloco é validado contra a soma/Total da própria planilha (campo 'val').
+    - variaveis: aba 'Aure - Variável', coluna 'Valor da Comissão' por Squad/mês."""
+    z = zipfile.ZipFile(io.BytesIO(xlsx_bytes))
+    ss = []
+    if "xl/sharedStrings.xml" in z.namelist():
+        r = ET.fromstring(z.read("xl/sharedStrings.xml"))
+        for si in r.findall(_XNS + "si"):
+            ss.append("".join(t.text or "" for t in si.iter(_XNS + "t")))
+    wb = ET.fromstring(z.read("xl/workbook.xml"))
+    rels = ET.fromstring(z.read("xl/_rels/workbook.xml.rels"))
+    relmap = {r.get("Id"): r.get("Target") for r in rels}
+    teamup = set(x.upper() for x in SQUAD_ALL) | {"GOAT", "AURE"}
+    churns, variaveis, val_report = [], [], []
+    for s in wb.find(_XNS + "sheets"):
+        name = (s.get("name") or "").strip()
+        parts = name.split(" - ")
+        if len(parts) < 2:
+            continue
+        tab_team, tipo = parts[0].strip(), parts[1].strip().lower()
+        tgt = relmap.get(s.get(_XRNS + "id"))
+        if not tgt:
+            continue
+        path = ("xl/" + tgt) if not tgt.startswith("/") else tgt[1:]
+        grid = _cs_grid(z, path, ss)
+        maxrow = max(grid, default=0)
+        heads = [row for row in range(1, maxrow + 1)
+                 if _CS_BLOCK.search(str(grid.get(row, {}).get(0, "")))]
+
+        if tipo == "churn":
+            squad = _TAB2SQUAD.get(tab_team.upper(), tab_team)
+            if squad.upper() == "AURE" or squad in EXCLUDE_SQUADS:
+                continue                       # consolidado não entra (evita dobrar)
+            for bi, hr in enumerate(heads):
+                end = heads[bi + 1] if bi + 1 < len(heads) else maxrow + 1
+                m = _CS_BLOCK.search(str(grid.get(hr, {}).get(0, "")))
+                mo = MESES_PT.get(m.group(1).upper())
+                if not mo:
+                    continue
+                mes = "%s-%02d" % (m.group(2), mo)
+                feecol = respcol = hdr = None
+                for rr in range(hr, min(hr + 4, end)):
+                    row = grid.get(rr, {})
+                    fc = next((ci for ci, v in row.items() if str(v).strip() == "Fee Mensal"), None)
+                    if fc is not None:
+                        feecol, hdr = fc, rr
+                        respcol = next((ci for ci, v in row.items()
+                                        if str(v).strip().lower().startswith("respons")), None)
+                        break
+                if feecol is None:
+                    continue
+                block_sum, sheet_sum, sheet_tot = 0.0, None, None
+                for rr in range(hdr + 1, end):
+                    cells = grid.get(rr, {})
+                    emp = str(cells.get(0, "")).strip()
+                    fv = _cs_num(cells.get(feecol))
+                    if emp.startswith("Total"):
+                        sheet_tot = _cs_num(cells.get(feecol)) or _cs_num(cells.get(1))
+                        break
+                    if emp.startswith("Clientes Ativos") or emp.startswith("CONTROLE") or emp.upper() in teamup:
+                        break
+                    if emp == "":
+                        if fv is not None and sheet_sum is None:
+                            sheet_sum = fv
+                        continue
+                    if emp in ("Empresa", "M"):
+                        continue
+                    if fv is not None:
+                        resp = str(cells.get(respcol, "")).strip() if respcol is not None else ""
+                        if resp and not any(ch.isalpha() for ch in resp):   # descarta data/serial na coluna Responsável
+                            resp = ""
+                        churns.append({"squad": squad, "mes": mes, "cliente": emp,
+                                       "fee": round(fv, 2), "resp": resp})
+                        block_sum += fv
+                ref = sheet_sum if sheet_sum is not None else sheet_tot
+                ok = ref is not None and abs(block_sum - ref) < 1.5
+                val_report.append((squad, mes, round(block_sum, 2), ref, ok))
+
+        elif tipo.startswith("vari"):
+            # blocos da variável: "Controle Variável - JUNHO/2026" (ou "CONTROLE CHURN - .../mês/ano")
+            vheads = [row for row in range(1, maxrow + 1)
+                      if "controle" in str(grid.get(row, {}).get(0, "")).lower()
+                      and _CS_MESYEAR.search(str(grid.get(row, {}).get(0, "")))]
+            for bi, hr in enumerate(vheads):
+                end = vheads[bi + 1] if bi + 1 < len(vheads) else maxrow + 1
+                m = _CS_MESYEAR.search(str(grid.get(hr, {}).get(0, "")))
+                mo = _cs_month(m.group(1))
+                if not mo:
+                    continue
+                mes = "%s-%02d" % (m.group(2), mo)
+                comcol = sqcol = hdr = None
+                for rr in range(hr, min(hr + 4, end)):
+                    for ci, v in grid.get(rr, {}).items():
+                        vs = str(v).strip().lower()
+                        if "comiss" in vs:
+                            comcol = ci
+                        if vs.startswith("squad"):
+                            sqcol = ci
+                    if comcol is not None:
+                        hdr = rr
+                        break
+                if comcol is None:
+                    continue
+                for rr in range(hdr + 1, end):
+                    cells = grid.get(rr, {})
+                    a = str(cells.get(0, "")).strip()
+                    if a.lower().startswith("total") or a.startswith("CONTROLE"):
+                        break
+                    val = _cs_num(cells.get(comcol))
+                    if val and val > 0:
+                        sq = (str(cells.get(sqcol, "")).strip() if sqcol is not None else "")
+                        sq = _TAB2SQUAD.get(sq.upper(), sq) if sq else None
+                        if sq and sq not in EXCLUDE_SQUADS:
+                            variaveis.append({"squad": sq, "mes": mes, "valor": round(val, 2)})
+    return {"churns": churns, "variaveis": variaveis, "val": val_report}
+
+def fetch_churn_sheet():
+    """Baixa a planilha de churn (export xlsx), parseia e cacheia. Fallback = cache."""
+    url = "https://docs.google.com/spreadsheets/d/%s/export?format=xlsx" % CHURN_SHEET_ID
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "painel-time/1.0"})
+        data = urllib.request.urlopen(req, timeout=90).read()
+        out = parse_churn_sheet_xlsx(data)
+        nb = len(out["val"])
+        nok = sum(1 for _, _, _, _, ok in out["val"] if ok)
+        json.dump(out, open(CHURN_SHEET_CACHE, "w", encoding="utf-8"), ensure_ascii=False)
+        print("Churn (planilha): %d saídas, %d blocos (%d validados), %d variáveis."
+              % (len(out["churns"]), nb, nok, len(out["variaveis"])))
+        if nb and nok < nb:
+            print("  [aviso] %d bloco(s) de churn divergem do total da planilha." % (nb - nok))
+        return out
+    except Exception as e:
+        print("  [aviso] não consegui ler a planilha de churn (%s); usando cache." % str(e)[:80])
+        return _load(CHURN_SHEET_CACHE, {"churns": [], "variaveis": [], "val": []})
+
 def fetch_empresas(token):
     """Baixa a lista 'Gestão de empresas' (fee, status, squad, account/gestor, datas de churn)."""
     print("Baixando empresas (Gestão de empresas)...")
@@ -508,13 +693,12 @@ def is_company(t):
         return False
     return bool(_cf_currency(t, CF_FEE) > 0 or _cf_date(t, CF_ENTRADA) or _cf_squad(t))
 
-def build_churn(empresas, variavel=None, reducoes=None, reducoes_list=None, today=None):
-    """Monta o modelo de churn por STATUS + DATA DE SAÍDA.
-    - Base (carteira ativa) = só clientes 'ativo'.
-    - Churn = status {aviso, rescisão, pendência adm, inadimplente, finalizado}; o MÊS de cada churn
-      vem da Data de Saída: mês corrente = churn do mês (entra no %); futuro = projeção; passado = já saiu.
-    - churn% do mês = (fee que sai no mês + reduções) / (fee ativo + fee que sai no mês).
-    - Cliente em status de churn SEM Data de Saída → sinalizado (semDataSaida), não some do painel."""
+def build_churn(empresas, variavel=None, reducoes=None, reducoes_list=None, today=None, sheet_churns=None):
+    """Monta o modelo de churn — FONTE HÍBRIDA:
+    - Base (carteira ativa, fee/time/account/gestor) = ClickUp, só clientes 'ativo'.
+    - Churn (quem saiu, fee, por mês) = PLANILHA (sheet_churns), atribuído ao mês do bloco:
+      mês corrente = churn do mês (entra no %); futuro = projeção; passado = já saiu.
+    - churn% do mês = (fee que sai no mês + reduções) / (fee ativo + fee que sai no mês)."""
     today = today or datetime.datetime.now(TZ).date()
     cur_mes = "%04d-%02d" % (today.year, today.month)
     clients, people, sem_data = [], {}, []
@@ -559,14 +743,7 @@ def build_churn(empresas, variavel=None, reducoes=None, reducoes_list=None, toda
         elif st in ST_PAUSA:
             grp = "pausa"
         elif st in ST_CHURN:
-            if not saida_mes:
-                grp = "semdata"                       # status de churn sem Data de Saída → sinalizar
-            elif saida_mes == cur_mes:
-                grp = "aviso"                          # churn DESTE mês (entra no churn%)
-            elif saida_mes > cur_mes:
-                grp = "futuro"                         # churn de mês futuro (projeção)
-            else:
-                grp = "saiu"                           # Data de Saída no passado → já saiu (histórico)
+            continue                                   # churn agora vem da PLANILHA (sheet_churns), não do status
         else:
             grp = "outro"
         clients.append({"id": t["id"], "name": (t.get("name") or "").strip(), "fee": round(fee, 2),
@@ -601,6 +778,42 @@ def build_churn(empresas, variavel=None, reducoes=None, reducoes_list=None, toda
                              "status": st, "fee": round(fee, 2),
                              "account": acc[0]["name"] if acc else None,
                              "gestor": ges[0]["name"] if ges else None})
+
+    # ---- CHURN vindo da PLANILHA (substitui a detecção via status do ClickUp) ----
+    # Casa o "Responsável" da planilha (1º nome) com a pessoa ativa do mesmo squad.
+    STLBL = {"aviso": "aviso", "futuro": "a sair", "saiu": "finalizado"}
+    name2uid = {}
+    for pp in people.values():
+        parts_n = (pp["name"] or "").strip().split()
+        fn = parts_n[0].lower() if parts_n else ""
+        for sq_ in pp["squads"]:
+            name2uid.setdefault((sq_, fn), pp["uid"])
+    for c in (sheet_churns or []):
+        squad = c.get("squad")
+        mes = c.get("mes")
+        fee = float(c.get("fee") or 0.0)
+        if not squad or squad in EXCLUDE_SQUADS or not mes:
+            continue
+        grp = "aviso" if mes == cur_mes else ("futuro" if mes > cur_mes else "saiu")
+        resp = (c.get("resp") or "").strip()
+        rfn = resp.split()[0].lower() if resp else ""
+        uid = name2uid.get((squad, rfn))
+        clients.append({"id": "", "name": c.get("cliente", ""), "fee": round(fee, 2),
+                        "status": STLBL[grp], "grp": grp, "squad": squad, "saidaMes": mes,
+                        "account": resp or None, "accountUid": uid,
+                        "gestor": None, "gestorUid": None,
+                        "accountUids": ([uid] if uid else []), "gestorUids": [],
+                        "entrada": None, "aviso": None, "saida": None, "churnDate": None})
+        S = squad_bucket(squad)
+        if grp == "aviso":
+            S["feeAviso"] += fee; S["nAviso"] += 1
+            if uid in people:
+                people[uid]["feeAviso"] += fee; people[uid]["nAviso"] += 1
+        elif grp == "saiu":
+            S["feeChurn"] += fee; S["nChurn"] += 1
+            if uid in people:
+                people[uid]["feeChurn"] += fee; people[uid]["nChurn"] += 1
+        # grp "futuro" entra só na projeção (via clients[]), não no churn do mês
 
     def churn_pct(atv, avi):
         base = atv + avi
@@ -886,31 +1099,22 @@ def analyze(tasks, record=False):
     mes_atual = "%04d-%02d" % (today.year, today.month)
     py, pm = (today.year - 1, 12) if today.month == 1 else (today.year, today.month - 1)
     mes_prev = "%04d-%02d" % (py, pm)   # variável deste mês vale na META do mês seguinte
-    # FONTE COMPARTILHADA: planilha Google (o time preenche; o painel lê). Fetch fresco nas rodadas
-    # de nuvem (record=True); --no-fetch usa o cache p/ não zerar.
-    plan = fetch_planilha_lancamentos() if record else _load(PLANILHA_CACHE, {"reducoes": [], "variaveis": []})
-    # reduções do MÊS ATUAL → entram no churn do mês
-    red_by, red_list = {}, []
-    for e in plan.get("reducoes", []):
-        if e.get("mes") != mes_atual:
-            continue
+    # FONTE do CHURN: planilha "[Controle] Churns e Bonificações" (o time preenche; o painel lê).
+    # Fetch fresco nas rodadas de nuvem (record=True); --no-fetch usa o cache p/ não zerar.
+    sheet = fetch_churn_sheet() if record else _load(CHURN_SHEET_CACHE, {"churns": [], "variaveis": [], "val": []})
+    # Variável por (mês, squad). Ela é preenchida no início do mês seguinte e vale na bonificação
+    # desse mês seguinte → a última disponível é a do mês anterior (mes_prev), que é a operativa agora.
+    var_by = {}
+    for e in sheet.get("variaveis", []):
         s = e.get("squad") or "—"
-        val = float(e.get("valor") or 0.0)
-        red_by[s] = round(float(red_by.get(s, 0.0)) + val, 2)
-        red_list.append({"cliente": e.get("cliente"), "squad": s, "valor": round(val, 2),
-                         "motivo": e.get("motivo"), "data": e.get("data"), "mes": e.get("mes")})
-    # variável: MÊS ATUAL → toggle Fee+Variável ; MÊS ANTERIOR → base da bonificação
-    vbys, var_prev = {}, {}
-    for e in plan.get("variaveis", []):
-        s = e.get("squad") or "—"
-        val = float(e.get("valor") or 0.0)
-        if e.get("mes") == mes_atual:
-            cur = float((vbys.get(s) or {}).get("variavel") or 0.0)
-            vbys[s] = {"variavel": round(cur + val, 2)}
-        if e.get("mes") == mes_prev:
-            var_prev[s] = round(float(var_prev.get(s, 0.0)) + val, 2)
-    variavel = {"bySquad": vbys, "mes": mes_atual}
-    churn = build_churn(empresas, variavel, red_by, red_list, today=today)
+        mv = var_by.setdefault(e.get("mes"), {})
+        mv[s] = round(float(mv.get(s, 0.0)) + float(e.get("valor") or 0.0), 2)
+    var_prev = dict(var_by.get(mes_prev, {}))                       # base da bonificação deste mês
+    vbys = {s: {"variavel": v} for s, v in var_prev.items()}       # operativa = última preenchida (mês anterior)
+    red_by, red_list = {}, []                                      # reduções já entram como saídas na planilha
+    variavel = {"bySquad": vbys, "mes": mes_prev}
+    churn = build_churn(empresas, variavel, red_by, red_list, today=today,
+                        sheet_churns=sheet.get("churns", []))
     if record:
         record_fee_snapshot(churn, today)
         record_churn_history(churn, churn_history, today)   # acumula churn% por squad no mês atual
@@ -932,7 +1136,8 @@ def analyze(tasks, record=False):
         "feeHistory": fee_history,
         "churnHistory": churn_history,
         # espelho da planilha (leitura): o time preenche na planilha, o painel só mostra
-        "lancamentos": {"variaveis": plan.get("variaveis", []), "reducoes": plan.get("reducoes", []),
+        "lancamentos": {"variaveis": sheet.get("variaveis", []), "reducoes": [],
+                        "churns": sheet.get("churns", []), "valida": sheet.get("val", []),
                         "mesAtual": mes_atual, "mesPrev": mes_prev, "fonte": "planilha"},
     }
     json.dump(model, open(os.path.join(HERE, "model.json"), "w", encoding="utf-8"), ensure_ascii=False)

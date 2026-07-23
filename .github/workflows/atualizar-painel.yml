@@ -44,7 +44,7 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/state.json data/postpone_log.json data/fee_history.json data/churn_history.json data/planilha_cache.json
+          git add data/state.json data/postpone_log.json data/fee_history.json data/churn_history.json data/planilha_cache.json data/churn_sheet_cache.json
           git commit -m "atualiza estado (adiamentos + fee) [skip ci]" || echo "nada a commitar"
           # o painel pode commitar lancamentos.json direto na main pelo navegador; rebase e re-tenta p/ não bater cabeça
           for i in 1 2 3 4; do
