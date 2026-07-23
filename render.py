@@ -509,7 +509,7 @@ function monthPresetsHTML(){
   }
   let out=[];
   for(let mo=1;mo<=lastMo;mo++){const k=churnPmYear+"-"+p2(mo);out.push(`<button data-preset="m:${k}">${monthLbl(k)}</button>`);}  // crescente
-  out.push('<button data-preset="all">Tudo</button>');
+  // sem "Tudo" no churn: o % de churn é MENSAL (somar todos os meses infla o número). Cross-mês fica na aba Histórico.
   const yearNav=years.length>1?`<span style="display:inline-flex;gap:2px;margin-right:8px;padding-right:8px;border-right:1px solid var(--line)">${years.map(y=>`<button data-churn-pmyear="${y}" aria-pressed="${y===churnPmYear}">${y}</button>`).join('')}</span>`:'';
   return yearNav+out.join("");
 }
@@ -765,8 +765,9 @@ function renderChurn(){
   const FA=x=>useVar&&x.feeAtivoVar!=null?x.feeAtivoVar:x.feeAtivo;
   const CP=x=>useVar&&x.churnPctVar!=null?x.churnPctVar:x.churnPct;
   // --- o MÊS selecionado no topo pilota o churn (atribuído pela Data de Saída) ---
-  const selMes=(activePreset().slice(0,2)==="m:")?activePreset().slice(2):null;   // null = "Tudo" (todos os meses)
-  const mesLbl=selMes?projMesLbl(selMes):"todos os meses";
+  // churn é SEMPRE de um mês (o % só faz sentido mensal). Se o preset não for um mês, cai no mês corrente.
+  const selMes=(activePreset().slice(0,2)==="m:")?activePreset().slice(2):MODEL.window.to.slice(0,7);
+  const mesLbl=projMesLbl(selMes);
   const CHURN_GRP=new Set(["aviso","futuro","saiu"]);
   const churnCli=(C.clients||[]).filter(c=>c.saidaMes&&CHURN_GRP.has(c.grp)&&(selMes?c.saidaMes===selMes:true)&&!hiddenSq.has(c.squad)&&teamOk(c.squad));
   const aviBySq={},nAviBySq={},aviByUid={},nByUid={};
