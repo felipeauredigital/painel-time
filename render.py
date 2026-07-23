@@ -770,9 +770,13 @@ function renderChurn(){
   const mesLbl=projMesLbl(selMes);
   const CHURN_GRP=new Set(["aviso","futuro","saiu"]);
   const churnCli=(C.clients||[]).filter(c=>c.saidaMes&&CHURN_GRP.has(c.grp)&&(selMes?c.saidaMes===selMes:true)&&!hiddenSq.has(c.squad)&&teamOk(c.squad));
-  const aviBySq={},nAviBySq={},aviByUid={},nByUid={};
-  churnCli.forEach(c=>{aviBySq[c.squad]=(aviBySq[c.squad]||0)+c.fee;nAviBySq[c.squad]=(nAviBySq[c.squad]||0)+1;
-    new Set([...(c.accountUids||[]),...(c.gestorUids||[])]).forEach(u=>{aviByUid[u]=(aviByUid[u]||0)+c.fee;nByUid[u]=(nByUid[u]||0)+1;});});
+  const aviBySq={},nAviBySq={};
+  churnCli.forEach(c=>{aviBySq[c.squad]=(aviBySq[c.squad]||0)+c.fee;nAviBySq[c.squad]=(nAviBySq[c.squad]||0)+1;});
+  // churn POR PESSOA: soma TODA a carteira dela (independe do squad do cliente), casando com o fee ativo total.
+  // A pessoa é atribuída ao seu time de origem (p.squads = 1 squad, vindo do roster).
+  const aviByUid={},nByUid={};
+  (C.clients||[]).filter(c=>c.saidaMes&&CHURN_GRP.has(c.grp)&&(selMes?c.saidaMes===selMes:true)&&!hiddenSq.has(c.squad))
+    .forEach(c=>{new Set([...(c.accountUids||[]),...(c.gestorUids||[])]).forEach(u=>{aviByUid[u]=(aviByUid[u]||0)+c.fee;nByUid[u]=(nByUid[u]||0)+1;});});
   const pctOf=(base,avi)=>(base+avi)?+(avi/(base+avi)*100).toFixed(2):0;
   const squads=(C.squads||[]).filter(s=>s.squad!=="—"&&!hiddenSq.has(s.squad)&&teamOk(s.squad)).map(s=>{
     const avi=+(aviBySq[s.squad]||0).toFixed(2);

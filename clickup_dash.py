@@ -708,7 +708,7 @@ def _nrm_name(s, base=False):
     s = re.sub(r"[^a-z0-9]+", " ", s)
     return re.sub(r"\s+", " ", s).strip()
 
-def build_churn(empresas, variavel=None, reducoes=None, reducoes_list=None, today=None, sheet_churns=None):
+def build_churn(empresas, variavel=None, reducoes=None, reducoes_list=None, today=None, sheet_churns=None, home_squad=None):
     """Monta o modelo de churn — FONTE HÍBRIDA:
     - Base (carteira ativa, fee/time/account/gestor) = ClickUp, só clientes 'ativo'.
     - Churn (quem saiu, fee, por mês) = PLANILHA (sheet_churns), atribuído ao mês do bloco:
@@ -733,6 +733,8 @@ def build_churn(empresas, variavel=None, reducoes=None, reducoes_list=None, toda
             p["roles"].add(role)
         if squad and squad != "—":
             p["squads"].add(squad)
+            p.setdefault("_sqw", {})                       # peso por squad (fallback se a pessoa não estiver no roster)
+            p["_sqw"][squad] = p["_sqw"].get(squad, 0) + 1
         if u.get("avatar") and not p.get("avatar"):
             p["avatar"] = u["avatar"]
         return p
@@ -896,7 +898,17 @@ def build_churn(empresas, variavel=None, reducoes=None, reducoes_list=None, toda
     for p in people.values():
         if p["nAtivo"] + p["nAviso"] + p["nChurn"] == 0:
             continue
-        p["roles"] = sorted(p["roles"]); p["squads"] = sorted(p["squads"])
+        p["roles"] = sorted(p["roles"])
+        # SQUAD DA PESSOA = time de origem (roster de Gestão de Projetos). Uma pessoa = um squad.
+        # Fallback (fora do roster): squad predominante da carteira dela; por fim, 1º squad tocado.
+        home = (home_squad or {}).get(p["uid"])
+        w = p.pop("_sqw", None) or {}
+        if home and home not in EXCLUDE_SQUADS:
+            p["squads"] = [home]
+        elif w:
+            p["squads"] = [max(sorted(w), key=lambda s: w[s])]
+        else:
+            p["squads"] = sorted(p["squads"])[:1]
         p["churnPct"] = churn_pct(p["feeAtivo"], p["feeAviso"])
         for k in ("feeAtivo", "feeAviso", "feeChurn", "accFee", "gesFee"):
             p[k] = round(p[k], 2)
@@ -1176,8 +1188,10 @@ def analyze(tasks, record=False):
     vbys = {s: {"variavel": v} for s, v in var_prev.items()}       # operativa = última preenchida (mês anterior)
     red_by, red_list = {}, []                                      # reduções já entram como saídas na planilha
     variavel = {"bySquad": vbys, "mes": mes_prev}
+    # time de origem de cada pessoa (roster de Gestão de Projetos) → squad único no churn por pessoa
+    home_squad = {uid: r.get("team") for uid, r in roster.items() if r.get("team") and r["team"] != "—"}
     churn = build_churn(empresas, variavel, red_by, red_list, today=today,
-                        sheet_churns=sheet.get("churns", []))
+                        sheet_churns=sheet.get("churns", []), home_squad=home_squad)
     if record:
         record_fee_snapshot(churn, today)
         record_churn_history(churn, churn_history, today)   # acumula churn% por squad no mês atual
