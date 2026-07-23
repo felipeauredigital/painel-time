@@ -754,13 +754,13 @@ function renderChurn(){
     if(churnTab==="history")return renderChurnHistory(C,m,effScope);
     if(churnTab==="projection")return renderChurnProjection(C,m,hiddenSq,effScope);
     if(churnTab==="bonus")return renderChurnBonus(C,m,hiddenSq,effScope);
-    if(churnTab==="lanc")return renderChurnLanc(C,m,hiddenSq);
     if(churnTab==="insights")return renderChurnInsights(C,m,hiddenSq,effScope);
   }
   if(churnScope.slice(0,3)==="sq:")return renderChurnSquad(churnScope.slice(3),C,m,hiddenSq);
   if(churnScope.slice(0,3)==="pp:")return renderChurnPerson(+churnScope.slice(3),C,m,hiddenSq);
   $("ptitle").textContent="Controle de churn";
-  $("topright").innerHTML=`<div class="stepbtns"><button class="btn" data-export-cfg>⭳ Exportar</button><button class="btn" data-import-cfg>⭱ Importar</button></div>`;
+  // lançamentos são feitos direto na planilha — aqui só o atalho p/ abrir
+  $("topright").innerHTML=`<button class="btn" onclick="window.open('${PLANILHA_URL}','_blank')" title="Os lançamentos de churn, variável e bonificação são feitos na planilha">📄 Abrir planilha</button>`;
   const useVar=churnBase==="var";
   const FA=x=>useVar&&x.feeAtivoVar!=null?x.feeAtivoVar:x.feeAtivo;
   const CP=x=>useVar&&x.churnPctVar!=null?x.churnPctVar:x.churnPct;
@@ -1019,9 +1019,7 @@ function churnNav(label){
     <button class="cbtn" data-churn-base="fee" aria-pressed="${churnBase==='fee'}">Fee</button>
     <button class="cbtn" data-churn-base="var" aria-pressed="${churnBase==='var'}">Fee + Variável</button>`;
   const chip=label?`<span class="cscope">${esc(label)}<button class="cx" data-churn-back title="Ver a agência toda">✕</button></span>`:'';
-  const lp=lancLocal(); const nPend=lp.reducoes.length+lp.variaveis.length;
-  const pend=nPend?`<button class="cbtn sec" data-churn-tab="lanc" style="color:var(--high)" title="Lançamentos locais ainda não salvos">${nPend} pendente${nPend>1?'s':''}</button>`:'';
-  return `<div class="cnav">${chip}${T('overview','Resumo')}${T('history','Histórico')}${T('projection','Projeção')}${T('bonus','Bonificação')}<span class="csecwrap">${S('lanc','Lançamentos')}${S('insights','Insights')}${pend}</span><span class="sp"></span>${base}</div>`;
+  return `<div class="cnav">${chip}${T('overview','Resumo')}${T('history','Histórico')}${T('projection','Projeção')}${T('bonus','Bonificação')}<span class="csecwrap">${S('insights','Insights')}</span><span class="sp"></span>${base}</div>`;
 }
 
 function renderChurnHistory(C,m,scope){
@@ -1307,7 +1305,7 @@ function exportLanc(){
   a.download="lancamentos.json";document.body.appendChild(a);a.click();a.remove();
   showToast("Arquivo baixado. Me envie (ou faça commit em data/lancamentos.json) para valer para todos.");
 }
-const PLANILHA_URL="https://docs.google.com/spreadsheets/d/1rObxF8ftyxvV1c2mtM0zyip22YVFf45OO-7Wyg-1Ixc/edit";
+const PLANILHA_URL="https://docs.google.com/spreadsheets/d/10M2woH8TCalSE5qqXKZH9sg3JSOqGdPc6zjWwKB8P9g/edit";  // [Controle] Churns e Bonificações
 function renderChurnLanc(C,m,hiddenSq){
   $("ptitle").textContent="Churn · Lançamentos";
   $("topright").innerHTML="";
